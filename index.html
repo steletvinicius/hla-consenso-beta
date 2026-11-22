@@ -375,6 +375,8 @@ b.dc-cinza { color: var(--text-primary); background: var(--warning-soft); paddin
 .ld-tabela-wrap { max-height: 360px; overflow: auto; border: 1px solid var(--border); border-radius: 8px; }
 .ld-tab tr { cursor: default; }
 
+.aviso-mac{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:10px 14px;margin:0 0 14px;border:1px solid #fab219;border-left-width:4px;border-radius:8px;background:color-mix(in srgb,#fab219 10%,transparent)}
+
 </style>
 </head>
 <body>
@@ -2350,6 +2352,7 @@ b.dc-cinza { color: var(--text-primary); background: var(--warning-soft); paddin
     return `<div class="filtros">
         <input type="search" id="busca" placeholder="Buscar amostra…" value="${h(E.busca)}">
         <div class="seg" id="seg-filtro">${filtros.map(([k, r]) => `<button data-f="${k}" aria-pressed="${E.filtro === k}">${r}</button>`).join("")}</div>
+        ${pendentesMac().length ? `<button class="btn pequeno" data-mac-lote title="Consulta a API MAC do NMDP para todas as tipagens pendentes com “?” no código">“?” NMDP: consultar ${pendentesMac().length} na API MAC</button>` : ""}
         <span class="muted" style="margin-left:auto">Clique numa tipagem para comparar e decidir · <kbd>?</kbd> atalhos</span>
       </div>
       <div class="legenda">${legenda}<span><i class="qcdot erro"></i>QC crítico</span><span><i class="qcdot aviso"></i>QC atenção</span><span><i class="qcdot novo"></i>alelo novo?</span><span><span class="dec pend">!</span>pendente</span></div>
@@ -2534,12 +2537,9 @@ b.dc-cinza { color: var(--text-primary); background: var(--warning-soft); paddin
       const email = p.querySelector("#mac-email").value.trim() || EMAIL_MAC_PADRAO;
       localStorage.setItem("hlaConsenso:macEmail", email);
       const res = p.querySelector("#mac-res");
-      const imgt = (lin.engine.imgt.match(/\d+\.\d+\.\d+/) || ["3.62.0"])[0];   // mesmo padrão do app anterior
       bm.disabled = true; res.textContent = "Consultando a API MAC do NMDP…";
       try {
-        const txt = await HLA.codificarMac(lin.engine.glResultado, imgt, email);
-        const [a1, a2] = txt.split("+");
-        decidir(lin, { fonte: "mac", alelo1: (a1 || "").trim(), alelo2: (a2 || "").trim(), obs: `Código obtido na API MAC (IMGT ${imgt}): ${txt}` });
+        const txt = await consultarMac(lin, email);
         toast(`${lin.id} · ${lin.locus}: ${txt}`);
         abrirPainel(lin.chave, true);
       } catch (err) {
@@ -2550,6 +2550,76 @@ b.dc-cinza { color: var(--text-primary); background: var(--warning-soft); paddin
     });
     const lim = p.querySelector("#limpar-dec");
     if (lim) lim.onclick = ev => { ev.preventDefault(); decidir(lin, null); abrirPainel(lin.chave, true); };
+  }
+
+  // ================================================================ API MAC (individual e em lote)
+  const imgtDe = lin => (lin.engine.imgt.match(/\d+\.\d+\.\d+/) || ["3.62.0"])[0];   // mesmo padrão do app anterior
+  async function consultarMac(lin, email, cache, silencioso) {
+    const imgt = imgtDe(lin);
+    const k = imgt + "|" + lin.engine.glResultado;
+    let p = cache && cache.get(k);
+    if (!p) { p = HLA.codificarMac(lin.engine.glResultado, imgt, email); if (cache) cache.set(k, p); }
+    const txt = await p;
+    const [a1, a2] = txt.split("+");
+    decidir(lin, { fonte: "mac", alelo1: (a1 || "").trim(), alelo2: (a2 || "").trim(), obs: `Código obtido na API MAC (IMGT ${imgt}): ${txt}` }, silencioso);
+    return txt;
+  }
+  const pendentesMac = () => E.cons.linhas.filter(l => l.semMac && l.engine && l.engine.glResultado && pendente(l));
+  function macEmLote() { garantirAnalista(abrirMacLote); }
+  function abrirMacLote() {
+    const ls = pendentesMac();
+    if (!ls.length) return toast("Nenhuma tipagem pendente com “?” no código NMDP.");
+    const email0 = localStorage.getItem("hlaConsenso:macEmail") || EMAIL_MAC_PADRAO;
+    const unicas = new Set(ls.map(l => imgtDe(l) + "|" + l.engine.glResultado)).size;
+    modal(`<h2>Consultar a API MAC em lote</h2>
+      <p class="sec">${ls.length} tipagem(ns) com “?” no código NMDP${unicas < ls.length ? ` · ${unicas} GLString(s) distintas (as repetidas são consultadas uma vez só)` : ""}. Cada código obtido fica registrado como decisão <b>NGSengine + API MAC</b>, com o seu nome.</p>
+      <div class="manual" style="margin:8px 0"><input id="macl-email" title="e-mail enviado à API MAC" value="${h(email0)}" style="font-family:var(--sans)"></div>
+      <div class="dos-barra" style="height:8px;margin:8px 0"><span id="macl-barra" style="display:block;height:100%;width:0;background:var(--accent, #2563eb);border-radius:4px;transition:width .2s"></span></div>
+      <div class="sec" id="macl-status">Pronto para consultar.</div>
+      <div style="max-height:46vh;overflow:auto;margin-top:8px"><table class="tabela" style="width:100%"><thead><tr><th>Amostra</th><th>Locus</th><th>Resultado</th></tr></thead>
+        <tbody>${ls.map((l, i) => `<tr><td><b>${h(l.id)}</b></td><td>${h(l.locus)}</td><td class="mono" id="macl-r${i}">aguardando</td></tr>`).join("")}</tbody></table></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap">
+        <button class="btn" id="macl-copiar" hidden>Copiar GLStrings que falharam</button>
+        <button class="btn" id="macl-fechar">Fechar</button>
+        <button class="btn primario" id="macl-ir">Consultar ${ls.length}</button></div>`, m => {
+      let parar = false, rodando = false;
+      const falhas = [];
+      const ir = m.querySelector("#macl-ir"), fechar = m.querySelector("#macl-fechar"), st = m.querySelector("#macl-status"), barra = m.querySelector("#macl-barra");
+      fechar.onclick = () => { if (rodando) { parar = true; fechar.textContent = "Parando…"; } else { fecharModal(); render(); } };
+      m.querySelector("#macl-copiar").onclick = async () => {
+        const tsv = ["amostra\tlocus\timgt\tglstring", ...falhas.map(l => [l.id, l.locus, imgtDe(l), l.engine.glResultado].join("\t"))].join("\n");
+        try { await navigator.clipboard.writeText(tsv); toast("GLStrings copiadas (tabela com amostra, locus, IMGT e GLString)."); } catch (e) { baixar(tsv, `${lote()}_glstrings_sem_mac.tsv`, "text/tab-separated-values"); }
+      };
+      ir.onclick = async () => {
+        const email = m.querySelector("#macl-email").value.trim() || EMAIL_MAC_PADRAO;
+        localStorage.setItem("hlaConsenso:macEmail", email);
+        rodando = true; ir.disabled = true; fechar.textContent = "Parar"; falhas.length = 0;
+        const cache = new Map();
+        let feitos = 0, ok = 0, prox = 0, erroRede = false;
+        const atualizar = () => { barra.style.width = (100 * feitos / ls.length) + "%"; st.textContent = `${feitos}/${ls.length} consultadas · ${ok} código(s) obtido(s)${falhas.length ? ` · ${falhas.length} falha(s)` : ""}`; };
+        const trabalhador = async () => {
+          while (!parar && prox < ls.length) {
+            const i = prox++, l = ls[i], cel = m.querySelector("#macl-r" + i);
+            if (!pendente(l)) { cel.textContent = "já decidida"; feitos++; atualizar(); continue; }
+            cel.textContent = "consultando…";
+            try { const txt = await consultarMac(l, email, cache, true); cel.textContent = txt; cel.style.color = "var(--good, #0ca30c)"; ok++; }
+            catch (err) { falhas.push(l); cel.textContent = "falhou: " + err.message.slice(0, 90); cel.style.color = "var(--critical, #d03b3b)"; if (/fetch|network|Failed/i.test(err.message)) erroRede = true; }
+            feitos++; atualizar();
+          }
+        };
+        atualizar();
+        await Promise.all([trabalhador(), trabalhador(), trabalhador()]);   // até 3 consultas simultâneas, para não sobrecarregar o servidor
+        rodando = false; fechar.textContent = "Fechar"; render();
+        if (parar) st.textContent += " · interrompido";
+        if (falhas.length) {
+          m.querySelector("#macl-copiar").hidden = false;
+          ir.disabled = false; ir.textContent = `Tentar de novo as ${falhas.length} que falharam`;
+          ir.onclick = () => macEmLote();   // reabre só com as que continuam pendentes
+          if (erroRede) st.textContent += " · o navegador pode estar sem internet ou bloqueado pelo servidor do NMDP (CORS)";
+        } else if (!parar) { ir.hidden = true; toast(`API MAC: ${ok} código(s) obtido(s).`); }
+        parar = false;
+      };
+    });
   }
 
   // ================================================================ revisão em lote
@@ -2568,7 +2638,9 @@ b.dc-cinza { color: var(--text-primary); background: var(--warning-soft); paddin
     const grupos = new Map();
     for (const l of pend) { const g = grupoDe(l); if (!grupos.has(g)) grupos.set(g, []); grupos.get(g).push(l); }
     const ordenados = [...grupos.entries()].sort((a, b) => b[1].length - a[1].length);
-    return `<p class="sec" style="margin-top:0">As pendências estão agrupadas por locus e tipo de situação. Dá para decidir um grupo inteiro de uma vez (cada tipagem fica registrada com o seu nome) ou abrir uma por uma.</p>
+    const nMac = pendentesMac().length;
+    return `${nMac ? `<div class="aviso-mac"><span><b>${nMac}</b> tipagem(ns) com “?” no código NMDP aguardando a API MAC.</span><button class="btn primario pequeno" data-mac-lote>Consultar todas na API MAC</button></div>` : ""}
+      <p class="sec" style="margin-top:0">As pendências estão agrupadas por locus e tipo de situação. Dá para decidir um grupo inteiro de uma vez (cada tipagem fica registrada com o seu nome) ou abrir uma por uma.</p>
       <div class="grupos">${ordenados.map(([g, ls]) => {
         const [locus, st, rej, qc] = g.split("|");
         const temE = ls.every(l => l.opcoes.engine), temA = ls.every(l => l.opcoes.assign);
@@ -3043,6 +3115,7 @@ b.dc-cinza { color: var(--text-primary); background: var(--warning-soft); paddin
     app.querySelectorAll("#seg-filtro button").forEach(b => b.onclick = () => { E.filtro = b.dataset.f; render(); });
     const busca = app.querySelector("#busca");
     if (busca) busca.oninput = () => { E.busca = busca.value; const pos = busca.selectionStart; render(); const nb = $("#busca"); nb.focus(); nb.setSelectionRange(pos, pos); };
+    app.querySelectorAll("[data-mac-lote]").forEach(b => b.onclick = macEmLote);
     app.querySelectorAll("[data-lote]").forEach(b => b.onclick = () => decidirLote(b.dataset.lote, b.dataset.grupo));
     app.querySelectorAll("[data-lim]").forEach(i => i.onchange = () => {
       const v = parseFloat(i.value); if (!Number.isFinite(v)) return;
