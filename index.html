@@ -315,7 +315,7 @@ svg.graf .alvo { fill: transparent; cursor: pointer; }
 #relatorio { display: none; }
 @media print {
   body { background: #fff; color: #000; font-size: 11px; }
-  body > *:not(#relatorio) { display: none !important; }
+  body:not(.pg-validacao) > *:not(#relatorio) { display: none !important; }
   #relatorio { display: block; }
   #relatorio h1 { font-size: 16px; margin: 0 0 4px; }
   #relatorio table { width: 100%; border-collapse: collapse; margin-top: 8px; }

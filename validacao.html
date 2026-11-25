@@ -315,7 +315,7 @@ svg.graf .alvo { fill: transparent; cursor: pointer; }
 #relatorio { display: none; }
 @media print {
   body { background: #fff; color: #000; font-size: 11px; }
-  body > *:not(#relatorio) { display: none !important; }
+  body:not(.pg-validacao) > *:not(#relatorio) { display: none !important; }
   #relatorio { display: block; }
   #relatorio h1 { font-size: 16px; margin: 0 0 4px; }
   #relatorio table { width: 100%; border-collapse: collapse; margin-top: 8px; }
@@ -406,12 +406,16 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
   .cab-val .acoes { margin-left: auto; display: flex; gap: 8px; }
   @media print {
     .nao-imprimir, .drop { display: none !important; }
-    body { background: #fff; } .val { max-width: none; padding: 0; }
+    :root, :root[data-theme] { color-scheme: light; --bg: #fff; --surface-1: #fff; --surface-2: #f3f3f3; --border: #bbb; --text-primary: #000; --text-secondary: #333; --text-muted: #555; }
+    body { background: #fff; color: #000; font-size: 11px; } .val { max-width: none; padding: 0; }
+    .cartao, .resumo, .gab { box-shadow: none; }
+    .assinatura { break-inside: avoid; }
+    .assinatura input { border: none; border-bottom: 1px solid #000; border-radius: 0; background: none; }
     .grupo-v { break-inside: avoid; } details.grupo-v:not([open]) > *:not(summary) { display: block; }
   }
 </style>
 </head>
-<body>
+<body class="pg-validacao">
 <div class="val">
   <div class="cab-val">
     <div>
@@ -440,6 +444,16 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
       <input type="file" id="arquivos" multiple accept=".json,.xml,.xlsx,.zip,.csv,.txt" hidden>
     </div>
     <div id="gabaritos"></div>
+  </section>
+  <section class="cartao assinatura">
+    <h2>3. Registro</h2>
+    <div class="sub nao-imprimir">Preencha antes de imprimir. O PDF é o registro desta validação: guarde-o com a documentação do laboratório (não no GitHub).</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:8px">
+      <label class="sec">Validado por<input type="text" id="reg-nome" style="width:100%"></label>
+      <label class="sec">Decisão<select id="reg-decisao" style="width:100%"><option value="">—</option><option>Aprovada para uso</option><option>Reprovada</option><option>Aprovada com ressalvas</option></select></label>
+      <label class="sec">Observações<input type="text" id="reg-obs" style="width:100%"></label>
+    </div>
+    <div style="display:flex;gap:60px;margin-top:44px"><div style="flex:1;border-top:1px solid currentColor;padding-top:4px" class="sec">Assinatura</div><div style="flex:1;border-top:1px solid currentColor;padding-top:4px" class="sec">Data</div></div>
   </section>
   <p class="muted" style="font-size:12px;margin-top:18px">A referência de desequilíbrio de ligação muda com o tempo, por isso a comparação das corridas reais é feita sem ela; as regras de LD são verificadas nos casos artificiais (grupo 9).</p>
 </div>
@@ -2575,7 +2589,8 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
   drop.ondragleave = () => drop.classList.remove("sobre");
   drop.ondrop = e => { e.preventDefault(); drop.classList.remove("sobre"); receber([...e.dataTransfer.files]); };
   $("#bt-rodar").onclick = async () => { await rodarCasos(); if (estado.gabaritos.length) await validarGabaritos(); };
-  $("#bt-imprimir").onclick = () => { document.querySelectorAll("details.grupo-v").forEach(d => (d.open = true)); window.print(); };
+  try { $("#reg-nome").value = localStorage.getItem("hlaConsenso:analista") || ""; } catch (e) { /* sem storage */ }
+  $("#bt-imprimir").onclick = () => { document.querySelectorAll("details.grupo-v").forEach(d => (d.open = true)); document.title = `Validacao_HLA_Consenso_${HLA.VERSAO}`; window.print(); };
   rodarCasos();
 })();
 
