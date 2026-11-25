@@ -377,6 +377,10 @@ b.dc-cinza { color: var(--text-primary); background: var(--warning-soft); paddin
 
 .aviso-mac{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:10px 14px;margin:0 0 14px;border:1px solid #fab219;border-left-width:4px;border-radius:8px;background:color-mix(in srgb,#fab219 10%,transparent)}
 a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items: center; }
+.sessoes-salvas { margin-top: 18px; font-size: 13px; }
+.sessoes-salvas summary { cursor: pointer; color: var(--text-secondary); }
+.tabela-sessoes { border-collapse: collapse; width: 100%; }
+.tabela-sessoes td { padding: 4px 8px 4px 0; border-top: 1px solid var(--border); vertical-align: middle; }
 
 </style>
 <style>
@@ -2031,7 +2035,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
     return txt;
   }
 
-  const VERSAO = "2026.11.24-2";   // atualize a cada versão publicada (aparece no app, no relatório e no gabarito)
+  const VERSAO = "2026.11.24-3";   // atualize a cada versão publicada (aparece no app, no relatório e no gabarito)
   const api = {
     VERSAO, codificarMac,
     LOCOS, STATUS, LIMITES_PADRAO, enxugarXml, parseXml, lerEngine, lerAssign, reduzirCampos, tresCampos,

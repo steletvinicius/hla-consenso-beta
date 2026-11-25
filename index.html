@@ -377,6 +377,10 @@ b.dc-cinza { color: var(--text-primary); background: var(--warning-soft); paddin
 
 .aviso-mac{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:10px 14px;margin:0 0 14px;border:1px solid #fab219;border-left-width:4px;border-radius:8px;background:color-mix(in srgb,#fab219 10%,transparent)}
 a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items: center; }
+.sessoes-salvas { margin-top: 18px; font-size: 13px; }
+.sessoes-salvas summary { cursor: pointer; color: var(--text-secondary); }
+.tabela-sessoes { border-collapse: collapse; width: 100%; }
+.tabela-sessoes td { padding: 4px 8px 4px 0; border-top: 1px solid var(--border); vertical-align: middle; }
 
 </style>
 </head>
@@ -420,6 +424,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
       <span class="muted" id="dica-inicio">Falta o export do NGSengine.</span>
     </div>
     <div class="erro-msg" id="erro-inicio"></div>
+    <div class="sessoes-salvas" id="sessoes-salvas"></div>
   </section>
 
   <section id="tela-app" class="hidden"></section>
@@ -2002,7 +2007,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
     return txt;
   }
 
-  const VERSAO = "2026.11.24-2";   // atualize a cada versão publicada (aparece no app, no relatório e no gabarito)
+  const VERSAO = "2026.11.24-3";   // atualize a cada versão publicada (aparece no app, no relatório e no gabarito)
   const api = {
     VERSAO, codificarMac,
     LOCOS, STATUS, LIMITES_PADRAO, enxugarXml, parseXml, lerEngine, lerAssign, reduzirCampos, tresCampos,
@@ -2195,6 +2200,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
     analista: localStorage.getItem("hlaConsenso:analista") || "",
     refLD: null, ldSoIncomuns: false, listaDmr: null, nomeListaDmr: "",
   };
+  const CFG_INICIAL = JSON.stringify(E.cfg);   // configuração de fábrica, para "começar do zero"
   const CHAVE_REF_LD = "hlaConsenso:referenciaLD";
   // referência de LD: 1º o arquivo do repositório (referencia_ld.json na raiz, gerado pelo ld_referencia.py);
   // sem ele (ex.: página aberta direto do disco), uma referência importada antes neste navegador
@@ -2241,9 +2247,50 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
     if (!E.cons) return;
     try {
       localStorage.setItem(CHAVE_LS + E.cons.projeto, JSON.stringify({
-        decisoes: E.decisoes, hemi: E.hemi, cfg: E.cfg, atualizado: new Date().toISOString(),
+        decisoes: E.decisoes, hemi: E.hemi, cfg: E.cfg, atualizado: new Date().toISOString(), analista: E.analista, arquivo: E.arquivos.engine ? E.arquivos.engine.nome : "",
       }));
     } catch (e) { console.warn(e); }
+  }
+  function sessoesSalvas() {
+    const out = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || !k.startsWith(CHAVE_LS)) continue;
+      let v = null; try { v = JSON.parse(localStorage.getItem(k)); } catch (e) { /* corrompida */ }
+      out.push({ chave: k, projeto: k.slice(CHAVE_LS.length), n: v && v.decisoes ? Object.keys(v.decisoes).length : 0, nh: v && v.hemi ? Object.keys(v.hemi).length : 0, atualizado: v && v.atualizado, analista: v && v.analista });
+    }
+    return out.sort((a, b) => String(b.atualizado).localeCompare(String(a.atualizado)));
+  }
+  function apagarSessao(projeto) { localStorage.removeItem(CHAVE_LS + projeto); }
+  function recomecar() {   // esquece tudo desta corrida: decisões, DRB3/4/5, configuração e o "desfazer"
+    apagarSessao(E.cons.projeto);
+    E.decisoes = {}; E.hemi = {}; E.desfazer = []; E.cfg = JSON.parse(CFG_INICIAL);
+    recalcular(); render(); toast("Corrida reiniciada do zero: só as sugestões automáticas.");
+  }
+  function desenharSessoes() {
+    const el = $("#sessoes-salvas");
+    if (!el) return;
+    const ss = sessoesSalvas();
+    if (!ss.length) { el.innerHTML = ""; return; }
+    el.innerHTML = `<details><summary>Corridas com análise salva neste navegador (${ss.length})</summary>
+      <div class="sub" style="margin:6px 0">Ao abrir uma destas corridas, o app pergunta se você quer continuar de onde parou ou começar do zero. Apagar aqui não mexe nos arquivos nem nos gabaritos.</div>
+      <table class="tabela-sessoes">${ss.map(x => `<tr><td class="mono">${h(x.projeto)}</td><td>${x.n} decisão(ões)${x.nh ? ` · ${x.nh} DRB3/4/5` : ""}</td><td class="muted">${x.atualizado ? new Date(x.atualizado).toLocaleString("pt-BR") : ""}${x.analista ? " · " + h(x.analista) : ""}</td><td><button class="btn pequeno" data-apagar-sessao="${h(x.projeto)}">Apagar</button></td></tr>`).join("")}</table>
+      <button class="btn pequeno" id="apagar-todas" style="margin-top:6px">Apagar todas</button></details>`;
+    el.querySelectorAll("[data-apagar-sessao]").forEach(b => b.onclick = () => { apagarSessao(b.dataset.apagarSessao); desenharSessoes(); });
+    el.querySelector("#apagar-todas").onclick = () => { if (confirm(`Apagar a análise salva de ${ss.length} corrida(s) neste navegador?`)) { ss.forEach(x => localStorage.removeItem(x.chave)); desenharSessoes(); } };
+  }
+  /** Corrida já analisada neste navegador: continuar ou começar do zero? */
+  function perguntarRetomar(salvo) {
+    const n = Object.keys(salvo.decisoes || {}).length, nh = Object.keys(salvo.hemi || {}).length;
+    const cfgMudou = salvo.cfg && JSON.stringify(Object.assign(JSON.parse(CFG_INICIAL), salvo.cfg)) !== CFG_INICIAL;
+    if (!n && !nh && !cfgMudou) return Promise.resolve("continuar");
+    return new Promise(res => modal(`<h2>Esta corrida já foi analisada neste navegador</h2>
+      <p class="sec">Ficaram salvas ${n} decisão(ões) do analista${nh ? `, ${nh} escolha(s) de DRB3/4/5` : ""}${cfgMudou ? " e ajustes de configuração (limites de QC, referência da dosagem…)" : ""}${salvo.atualizado ? `, alteradas por último em ${new Date(salvo.atualizado).toLocaleString("pt-BR")}${salvo.analista ? " por " + h(salvo.analista) : ""}` : ""}.</p>
+      <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn" id="ret-zero">Começar do zero (apaga o que foi salvo)</button><button class="btn primario" id="ret-cont">Continuar de onde parei</button></div>`, m => {
+      m.onclick = null; m.dataset.obrigatorio = "1";   // não fecha clicando fora nem com Esc: precisa escolher
+      m.querySelector("#ret-cont").onclick = () => { fecharModal(); res("continuar"); };
+      m.querySelector("#ret-zero").onclick = () => { fecharModal(); res("zero"); };
+    }));
   }
   function lerSalvo(projeto) {
     try { return JSON.parse(localStorage.getItem(CHAVE_LS + projeto) || "null"); } catch (e) { return null; }
@@ -2302,8 +2349,13 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
       carregando("Lendo os relatórios do Assign…");
       E.assigns = [];
       for (const a of E.arquivos.assigns) E.assigns.push(HLA.lerAssign(await Arquivos.lerXlsx(a.buffer), a.nome));
-      const salvo = lerSalvo(E.engine.projeto);
-      E.decisoes = {}; E.hemi = {};
+      let salvo = lerSalvo(E.engine.projeto);
+      E.decisoes = {}; E.hemi = {}; E.desfazer = []; E.cfg = JSON.parse(CFG_INICIAL);
+      if (salvo) {
+        carregando(null);
+        if ((await perguntarRetomar(salvo)) === "zero") { apagarSessao(E.engine.projeto); salvo = null; }
+        carregando("Montando a placa…");
+      }
       if (salvo) {
         E.decisoes = salvo.decisoes || {};
         E.hemi = salvo.hemi || {};
@@ -3245,7 +3297,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px"><button class="btn pequeno" id="exp-gabarito">Gerar gabarito de validação (.json)</button><a class="btn pequeno" href="validacao.html" target="_blank">Abrir a página de validação ↗</a></div>
         <h3 style="margin-top:18px">Sessão</h3><div class="sub">As decisões são salvas automaticamente neste navegador. Para continuar em outro computador, exporte a sessão.</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pequeno" id="exp-sessao">Exportar sessão (.json)</button><button class="btn pequeno" id="imp-sessao">Importar sessão</button><input type="file" id="arq-sessao" accept=".json" hidden>
-          <button class="btn pequeno" id="limpar-sessao">Apagar decisões desta corrida</button></div>
+          <button class="btn pequeno" id="limpar-sessao">Recomeçar esta corrida do zero</button></div>
       </div></div>`;
   }
   function excluirLista() { return E.cfg.excluir.split(",").map(s => s.trim()).filter(Boolean); }
@@ -3364,9 +3416,9 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
     bind("#exp-gabarito", gerarGabarito);
     bind("#exp-sessao", () => baixar(JSON.stringify(sessao(), null, 2), `${lote()}_sessao_decisoes.json`, "application/json"));
     bind("#imp-sessao", () => app.querySelector("#arq-sessao").click());
-    bind("#limpar-sessao", () => modal(`<h2>Apagar as decisões desta corrida?</h2><p class="sec">As ${Object.keys(E.decisoes).length} decisões do analista serão removidas deste navegador. As sugestões automáticas continuam.</p><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" id="nao">Cancelar</button><button class="btn primario" id="sim">Apagar</button></div>`, m => {
+    bind("#limpar-sessao", () => modal(`<h2>Recomeçar esta corrida do zero?</h2><p class="sec">Serão apagadas deste navegador as ${Object.keys(E.decisoes).length} decisões do analista, as escolhas de DRB3/4/5 e os ajustes de configuração desta corrida. Ficam só as sugestões automáticas, como na primeira abertura. Se quiser guardar o que foi feito, exporte a sessão antes.</p><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" id="nao">Cancelar</button><button class="btn primario" id="sim">Recomeçar do zero</button></div>`, m => {
       m.querySelector("#nao").onclick = fecharModal;
-      m.querySelector("#sim").onclick = () => { E.decisoes = {}; E.hemi = {}; salvar(); fecharModal(); render(); toast("Decisões apagadas."); };
+      m.querySelector("#sim").onclick = () => { fecharModal(); recomecar(); };
     }));
     const as = app.querySelector("#arq-sessao");
     if (as) as.onchange = async () => {
@@ -3397,7 +3449,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
   }
 
   document.addEventListener("keydown", ev => {
-    if ($("#modal")) { if (ev.key === "Escape") fecharModal(); return; }
+    if ($("#modal")) { if (ev.key === "Escape" && !$("#modal").dataset.obrigatorio) fecharModal(); return; }
     const alvo = ev.target;
     const digitando = alvo && (alvo.tagName === "INPUT" || alvo.tagName === "TEXTAREA");
     if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === "z" && !digitando) { ev.preventDefault(); return desfazer(); }
@@ -3440,6 +3492,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
   $("#abas").onclick = ev => { const b = ev.target.closest("button[data-aba]"); if (b) { E.aba = b.dataset.aba; render(); } };
   $("#bt-atalhos").onclick = mostrarAtalhos;
   $("#bt-nova").onclick = () => location.reload();
+  desenharSessoes();
   $("#bt-tema").onclick = () => {
     const r = document.documentElement, escuro = r.dataset.theme ? r.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
     r.dataset.theme = escuro ? "light" : "dark"; localStorage.setItem("hlaConsenso:tema", r.dataset.theme);
