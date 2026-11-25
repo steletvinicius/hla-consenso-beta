@@ -1292,6 +1292,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
     if (!S.locos.length && !A.locos.length)
       throw new Error(`${nomeArquivo}: não encontrei as abas Summary/Ambiguities do Assign.`);
     const ids = new Set([...Object.keys(S.dados), ...Object.keys(A.dados)]);
+    const imgtAssign = (String(info["References"] || "").match(/\d+\.\d+\.\d+/) || [""])[0];
     const locos = [];
     const v = (T, id, lc) => ((T.dados[id] || {})[lc] || []).filter(Boolean);
     const pct = s => { const f = parseFloat(String(s).replace("%", "")); return Number.isFinite(f) ? f : null; };
@@ -1304,7 +1305,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
         const cov = v(C, id, lc).map(x => parseFloat(x)).filter(Number.isFinite);
         const bal = v(B, id, lc).map(pct).filter(x => x !== null);
         locos.push({
-          id, chave: chaveId(id), locus: lc, arquivo: nomeArquivo,
+          id, chave: chaveId(id), locus: lc, arquivo: nomeArquivo, imgt: imgtAssign,
           alelo1: sum[0] || "", alelo2: sum[1] || "",
           gl: insuf ? "" : amb.replace(/\s+/g, ""),
           glBruto: v(A, id, lc)[0] ? v(A, id, lc)[0].replace(/ /g, "") : "",   // igual ao app R
@@ -1639,6 +1640,15 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
     return op;
   }
 
+  /** O Assign não usa "?": a tipagem precisa de código NMDP quando a aba Ambiguities tem mais de um
+   *  genótipo distinto em 3 campos. Devolve a GL no formato da API MAC (genótipos separados por "|"). */
+  function ambiguidadeAssign(a) {
+    if (!a || !a.gl) return null;
+    const gs = genotiposAssign(a.gl);
+    if (paresDe(gs, 3, false).pares.size < 2) return null;
+    return { gl: gs.map(g => g.map(x => x[0]).join("+")).join("|"), imgt: a.imgt || "", genotipos: gs.length };
+  }
+
   /** Junta Engine + Assign por amostra/locus, compara e sugere a decisão. */
   function consolidar(engine, assigns, cfg) {
     const L = Object.assign({}, LIMITES_PADRAO, (cfg && cfg.limites) || {});
@@ -1673,6 +1683,8 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
         ? { status: e && (e.glConclusiva || e.glResultado) ? (e.status === "Approved" ? "aprovado" : "rejeitado_engine") : "ausente" }
         : comparar(e ? e.glConclusiva : "", a ? a.gl : "", opc);
       lin.opcoes = opcoesLiberacao(lin);
+      lin.semMac = !!(lin.opcoes.engine && /\?/.test(lin.opcoes.engine.join("") + (e ? (e.nmdp1 || "") + (e.nmdp2 || "") : "")));   // "?" no código bruto ou reduzido
+      lin.assignMac = ambiguidadeAssign(a);
       return lin;
     }
     function sugerir(lin) {
@@ -1680,12 +1692,11 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
       const temOpcao = !!lin.opcoes.engine;
       const temTipagemEngine = !!(e && (e.glConclusiva || e.glResultado || e.nmdp1));
       if (st === "ausente" && !temTipagemEngine) return { fonte: "nenhuma", automatica: true, motivo: "Locus não tipado em nenhum software" };
-      if (temOpcao && /\?/.test(lin.opcoes.engine.join("") + (e ? (e.nmdp1 || "") + (e.nmdp2 || "") : ""))) {   // "?" no código bruto ou reduzido
-        lin.semMac = true;
-        return { fonte: null, automatica: false, motivo: "Código NMDP incompleto (“?”): consulte a API MAC para obter o código" };
-      }
+      // rejeitado vem antes do "?": a tipagem do NGSengine não será usada, então não há código a consultar
       if (e && !aprov && temTipagemEngine && ntRejeitado)
         return { fonte: "nt", automatica: true, motivo: `Locus ${e.status === "Rejected" ? "rejeitado" : "não aprovado"} no NGSengine → NT no resultado final` };
+      if (lin.semMac)
+        return { fonte: null, automatica: false, motivo: "Código NMDP incompleto (“?”): consulte a API MAC para obter o código" };
       if (modoEngine) {
         if (aprov && temOpcao) {
           if (exigirRevisaoQC && lin.qcNivel === "erro") return { fonte: null, automatica: false, motivo: "Aprovado no NGSengine, mas com alerta vermelho de QC" };
@@ -1732,6 +1743,8 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
     if (d.fonte === "nenhuma") return { estado: "nenhuma", alelos: ["", ""] };
     if (d.fonte === "nt" || d.fonte === "nao_liberar") return { estado: "nt", alelos: ["NT", "NT"] };
     if (d.fonte === "manual" || d.fonte === "mac") return { estado: d.fonte, alelos: [d.alelo1 || "", d.alelo2 || ""] };
+    // Assign ambíguo: fica pendente até obter o código na API MAC (ou o analista liberar o Summary assim mesmo)
+    if (d.fonte === "assign" && lin.assignMac && !d.semCodigo) return { estado: "pendente", alelos: ["", ""], aguardaMac: true };
     const op = lin.opcoes[d.fonte];
     return op ? { estado: d.fonte, alelos: op.slice() } : { estado: "pendente", alelos: ["", ""] };
   }
@@ -2018,13 +2031,13 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
     return txt;
   }
 
-  const VERSAO = "2026.11.24";   // atualize a cada versão publicada (aparece no app, no relatório e no gabarito)
+  const VERSAO = "2026.11.24-2";   // atualize a cada versão publicada (aparece no app, no relatório e no gabarito)
   const api = {
     VERSAO, codificarMac,
     LOCOS, STATUS, LIMITES_PADRAO, enxugarXml, parseXml, lerEngine, lerAssign, reduzirCampos, tresCampos,
     genotiposEngine, genotiposAssign, comparar, avaliarQC, consolidar, tipagemLiberada,
     analisarHemizigose, CANDIDATOS_REF, lerListaDmr, buscarDmr, exportarRedome, aplicarCopias, resultadoFinal, exportarConsensoR, exportarComparativo, exportarInfoAdicionais,
-    chaveId, csv, HEMI, NOME_DR, LOCOS_FINAL,
+    ambiguidadeAssign, chaveId, csv, HEMI, NOME_DR, LOCOS_FINAL,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else raiz.HLA = api;
@@ -2086,6 +2099,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
         assign: (l.opcoes.assign || []).join(" + "),
         copias: l.dosagem && l.dosagem.classe !== null && l.dosagem.classe !== undefined ? String(l.dosagem.classe) : "",
         liberada: t.estado === "pendente" ? "pendente" : t.alelos.filter(Boolean).join(" + ") || t.estado,
+        assignAmbiguo: !!l.assignMac,
       };
     }
     const drb345 = {};
@@ -2112,7 +2126,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
       const E = esp[campo] || {}, O = obt[campo] || {};
       for (const k of new Set([...Object.keys(E), ...Object.keys(O)])) {
         if (!E[k] || !O[k]) { add(secao, k, E[k] ? "presente" : undefined, O[k] ? "presente" : undefined); continue; }
-        for (const c of new Set([...Object.keys(E[k]), ...Object.keys(O[k])]))
+        for (const c of Object.keys(E[k]))   // só os campos que o gabarito tem: campos novos de versões futuras não quebram gabaritos antigos
           if (String(E[k][c]) !== String(O[k][c])) add(secao, `${k} · ${c}`, E[k][c], O[k][c]);
       }
     }
@@ -2216,6 +2230,9 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
     { id: "108", lc: { "HLA-B": { prof: 20 }, "HLA-DPB1": { a: "" }, "HLA-DRB1": { e: "DRB1*03:01:01+DRB1*11:01:01" }, "HLA-DRB3": { e: "DRB3*01:01:02+DRB3*02:02:01", reads: 1400 } } },
     { id: "109", lc: { "HLA-A": { e: "A*02:01:01+A*02:01:01", reads: 2000 }, "HLA-DRB1": { e: "DRB1*13:01:01+DRB1*15:01:01" }, "HLA-DRB3": { e: "DRB3*01:01:02+DRB3*01:01:02", reads: 700 } } },
     { id: "110", lc: { "HLA-DQB1": { a: "DQB1*02:01:01 + DQB1*06:02:01/DQB1*02:01:01 + DQB1*03:276N" }, "HLA-DRB1": { e: "DRB1*01:01:01+DRB1*10:01:01" } } },
+    { id: "111", lc: { "HLA-B": { st: "Rejected", nmdp: ["B*07:??", "B*44:02:01:01"] }, "HLA-DRB1": { e: "DRB1*01:01:01+DRB1*08:01:01" } } },
+    { id: "112", lc: { "HLA-DPB1": { a: "DPB1*04:01:01 + DPB1*02:01:02/DPB1*04:01:01 + DPB1*464:01" }, "HLA-DRB1": { e: "DRB1*01:01:01+DRB1*08:01:01" } } },
+    { id: "113", lc: { "HLA-A": { a: "A*02:01:01:01 + A*24:02:01/A*02:01:01:02 + A*24:02:01" }, "HLA-DRB1": { e: "DRB1*01:01:01+DRB1*08:01:01" } } },
     { id: "1044736", lc: { "HLA-DRB1": { e: "DRB1*01:01:01+DRB1*01:01:01" } } },
   ];
 
@@ -2281,6 +2298,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
   const DECISOES = {
     "103|HLA-B": { fonte: "assign" }, "104|HLA-C": { fonte: "mac", alelo1: "C*07:ABCD", alelo2: "C*05:01:01" },
     "105|HLA-DQB1": { fonte: "nao_liberar" }, "106|HLA-DPB1": { fonte: "manual", alelo1: "DPB1*04:01:01", alelo2: "DPB1*02:01:02" },
+    "112|HLA-DPB1": { fonte: "mac", origem: "assign", alelo1: "DPB1*04:01:01", alelo2: "DPB1*BCDE" },
     "107|HLA-A": { fonte: "engine" }, "108|HLA-B": { fonte: "engine" }, "108|HLA-DPB1": { fonte: "engine" }, "110|HLA-DQB1": { fonte: "engine" },
   };
 
@@ -2371,6 +2389,21 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
     t(G3, "Com “ignorar alelos nulos” o mesmo locus fica concordante", async () => tip(await F.executar(ent, { cfg: { ignorarNulos: true } }), "110|HLA-DQB1", { situacao: "identico", sugestao: "engine" }));
     t(G3, "Sem “revisar alerta vermelho”, concordante com QC ruim é liberado", async () => tip(await F.executar(ent, { cfg: { revisarAlertaVermelho: false } }), "108|HLA-B", { sugestao: "engine" }));
     t(G3, "Sem “rejeitado = NT”, o rejeitado fica pendente", async () => tip(await F.executar(ent, { cfg: { rejeitadoNT: false } }), "102|HLA-A", { sugestao: "pendente" }));
+
+    // ---------- 3b. códigos NMDP (API MAC)
+    const G3b = "3b. Código NMDP e API MAC (NGSengine e Assign)";
+    t(G3b, "Rejeitado no NGSengine com “?” → NT, sem ir para a API MAC", async () => tip(await semDec(), "111|HLA-B", { sugestao: "nt", liberada: "NT + NT" }));
+    t(G3b, "Assign com mais de um genótipo em 3 campos → precisa de código NMDP (GL no formato da API)", async () => {
+      const l = (await semDec()).cons.linhas.find(x => x.chave === "112|HLA-DPB1");
+      igual(l.assignMac && l.assignMac.gl, "DPB1*04:01:01+DPB1*02:01:02|DPB1*04:01:01+DPB1*464:01", "GL enviada"); igual(l.assignMac.imgt, "3.64.0", "versão IMGT do Assign");
+    });
+    t(G3b, "Assign com alternativas que só diferem no 4º campo → não precisa de código", async () => tip(await semDec(), "113|HLA-A", { assignAmbiguo: false, situacao: "identico", sugestao: "engine" }));
+    t(G3b, "Escolher o Assign ambíguo deixa a tipagem pendente (aguardando a API MAC)", async () => {
+      const r = await F.executar(ent, { decisoes: { "112|HLA-DPB1": { fonte: "assign" } } });
+      tip(r, "112|HLA-DPB1", { liberada: "pendente" }); celulas(r, "112", "HLA-DPB1", ["", ""]);
+    });
+    t(G3b, "Liberar o Summary do Assign sem código, por decisão explícita", async () => celulas(await F.executar(ent, { decisoes: { "112|HLA-DPB1": { fonte: "assign", semCodigo: true } } }), "112", "HLA-DPB1", ["DPB1*04:01:01", "DPB1*02:01:02"]));
+    t(G3b, "Código obtido na API MAC a partir do Assign entra no resultado", async () => celulas(await comDec(), "112", "HLA-DPB1", ["DPB1*04:01:01", "DPB1*BCDE"]));
 
     // ---------- 4. dosagem gênica
     const G4 = "4. Detector de número de cópias";

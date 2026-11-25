@@ -1263,6 +1263,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
     if (!S.locos.length && !A.locos.length)
       throw new Error(`${nomeArquivo}: não encontrei as abas Summary/Ambiguities do Assign.`);
     const ids = new Set([...Object.keys(S.dados), ...Object.keys(A.dados)]);
+    const imgtAssign = (String(info["References"] || "").match(/\d+\.\d+\.\d+/) || [""])[0];
     const locos = [];
     const v = (T, id, lc) => ((T.dados[id] || {})[lc] || []).filter(Boolean);
     const pct = s => { const f = parseFloat(String(s).replace("%", "")); return Number.isFinite(f) ? f : null; };
@@ -1275,7 +1276,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
         const cov = v(C, id, lc).map(x => parseFloat(x)).filter(Number.isFinite);
         const bal = v(B, id, lc).map(pct).filter(x => x !== null);
         locos.push({
-          id, chave: chaveId(id), locus: lc, arquivo: nomeArquivo,
+          id, chave: chaveId(id), locus: lc, arquivo: nomeArquivo, imgt: imgtAssign,
           alelo1: sum[0] || "", alelo2: sum[1] || "",
           gl: insuf ? "" : amb.replace(/\s+/g, ""),
           glBruto: v(A, id, lc)[0] ? v(A, id, lc)[0].replace(/ /g, "") : "",   // igual ao app R
@@ -1610,6 +1611,15 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
     return op;
   }
 
+  /** O Assign não usa "?": a tipagem precisa de código NMDP quando a aba Ambiguities tem mais de um
+   *  genótipo distinto em 3 campos. Devolve a GL no formato da API MAC (genótipos separados por "|"). */
+  function ambiguidadeAssign(a) {
+    if (!a || !a.gl) return null;
+    const gs = genotiposAssign(a.gl);
+    if (paresDe(gs, 3, false).pares.size < 2) return null;
+    return { gl: gs.map(g => g.map(x => x[0]).join("+")).join("|"), imgt: a.imgt || "", genotipos: gs.length };
+  }
+
   /** Junta Engine + Assign por amostra/locus, compara e sugere a decisão. */
   function consolidar(engine, assigns, cfg) {
     const L = Object.assign({}, LIMITES_PADRAO, (cfg && cfg.limites) || {});
@@ -1644,6 +1654,8 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
         ? { status: e && (e.glConclusiva || e.glResultado) ? (e.status === "Approved" ? "aprovado" : "rejeitado_engine") : "ausente" }
         : comparar(e ? e.glConclusiva : "", a ? a.gl : "", opc);
       lin.opcoes = opcoesLiberacao(lin);
+      lin.semMac = !!(lin.opcoes.engine && /\?/.test(lin.opcoes.engine.join("") + (e ? (e.nmdp1 || "") + (e.nmdp2 || "") : "")));   // "?" no código bruto ou reduzido
+      lin.assignMac = ambiguidadeAssign(a);
       return lin;
     }
     function sugerir(lin) {
@@ -1651,12 +1663,11 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
       const temOpcao = !!lin.opcoes.engine;
       const temTipagemEngine = !!(e && (e.glConclusiva || e.glResultado || e.nmdp1));
       if (st === "ausente" && !temTipagemEngine) return { fonte: "nenhuma", automatica: true, motivo: "Locus não tipado em nenhum software" };
-      if (temOpcao && /\?/.test(lin.opcoes.engine.join("") + (e ? (e.nmdp1 || "") + (e.nmdp2 || "") : ""))) {   // "?" no código bruto ou reduzido
-        lin.semMac = true;
-        return { fonte: null, automatica: false, motivo: "Código NMDP incompleto (“?”): consulte a API MAC para obter o código" };
-      }
+      // rejeitado vem antes do "?": a tipagem do NGSengine não será usada, então não há código a consultar
       if (e && !aprov && temTipagemEngine && ntRejeitado)
         return { fonte: "nt", automatica: true, motivo: `Locus ${e.status === "Rejected" ? "rejeitado" : "não aprovado"} no NGSengine → NT no resultado final` };
+      if (lin.semMac)
+        return { fonte: null, automatica: false, motivo: "Código NMDP incompleto (“?”): consulte a API MAC para obter o código" };
       if (modoEngine) {
         if (aprov && temOpcao) {
           if (exigirRevisaoQC && lin.qcNivel === "erro") return { fonte: null, automatica: false, motivo: "Aprovado no NGSengine, mas com alerta vermelho de QC" };
@@ -1703,6 +1714,8 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
     if (d.fonte === "nenhuma") return { estado: "nenhuma", alelos: ["", ""] };
     if (d.fonte === "nt" || d.fonte === "nao_liberar") return { estado: "nt", alelos: ["NT", "NT"] };
     if (d.fonte === "manual" || d.fonte === "mac") return { estado: d.fonte, alelos: [d.alelo1 || "", d.alelo2 || ""] };
+    // Assign ambíguo: fica pendente até obter o código na API MAC (ou o analista liberar o Summary assim mesmo)
+    if (d.fonte === "assign" && lin.assignMac && !d.semCodigo) return { estado: "pendente", alelos: ["", ""], aguardaMac: true };
     const op = lin.opcoes[d.fonte];
     return op ? { estado: d.fonte, alelos: op.slice() } : { estado: "pendente", alelos: ["", ""] };
   }
@@ -1989,13 +2002,13 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
     return txt;
   }
 
-  const VERSAO = "2026.11.24";   // atualize a cada versão publicada (aparece no app, no relatório e no gabarito)
+  const VERSAO = "2026.11.24-2";   // atualize a cada versão publicada (aparece no app, no relatório e no gabarito)
   const api = {
     VERSAO, codificarMac,
     LOCOS, STATUS, LIMITES_PADRAO, enxugarXml, parseXml, lerEngine, lerAssign, reduzirCampos, tresCampos,
     genotiposEngine, genotiposAssign, comparar, avaliarQC, consolidar, tipagemLiberada,
     analisarHemizigose, CANDIDATOS_REF, lerListaDmr, buscarDmr, exportarRedome, aplicarCopias, resultadoFinal, exportarConsensoR, exportarComparativo, exportarInfoAdicionais,
-    chaveId, csv, HEMI, NOME_DR, LOCOS_FINAL,
+    ambiguidadeAssign, chaveId, csv, HEMI, NOME_DR, LOCOS_FINAL,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else raiz.HLA = api;
@@ -2057,6 +2070,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
         assign: (l.opcoes.assign || []).join(" + "),
         copias: l.dosagem && l.dosagem.classe !== null && l.dosagem.classe !== undefined ? String(l.dosagem.classe) : "",
         liberada: t.estado === "pendente" ? "pendente" : t.alelos.filter(Boolean).join(" + ") || t.estado,
+        assignAmbiguo: !!l.assignMac,
       };
     }
     const drb345 = {};
@@ -2083,7 +2097,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
       const E = esp[campo] || {}, O = obt[campo] || {};
       for (const k of new Set([...Object.keys(E), ...Object.keys(O)])) {
         if (!E[k] || !O[k]) { add(secao, k, E[k] ? "presente" : undefined, O[k] ? "presente" : undefined); continue; }
-        for (const c of new Set([...Object.keys(E[k]), ...Object.keys(O[k])]))
+        for (const c of Object.keys(E[k]))   // só os campos que o gabarito tem: campos novos de versões futuras não quebram gabaritos antigos
           if (String(E[k][c]) !== String(O[k][c])) add(secao, `${k} · ${c}`, E[k][c], O[k][c]);
       }
     }
@@ -2168,7 +2182,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
   const ROT_CURTO = { identico: "Concordante", principal: "Só 1º genótipo", parcial: "Parcial", campos2: "Só 2 campos", divergente: "Divergente", so_engine: "Só NGSengine", so_assign: "Só Assign", ausente: "não tipado", aprovado: "Aprovado", revisar: "Revisar", rejeitado_engine: "Rejeitado" };
   const ICONE = { identico: "✓", principal: "≈", parcial: "◐", campos2: "2", divergente: "≠", so_engine: "E", so_assign: "A", ausente: "–", aprovado: "✓", revisar: "!", rejeitado_engine: "⛔" };
   const modoEngine = () => !!(E.cons && E.cons.modo === "engine");
-  const FONTES = { engine: "NGSengine", assign: "Assign", manual: "Manual", mac: "NGSengine + API MAC", nt: "NT", nao_liberar: "NT", nenhuma: "—" };
+  const FONTES = { engine: "NGSengine", assign: "Assign", manual: "Manual", mac: "API MAC", nt: "NT", nao_liberar: "NT", nenhuma: "—" };
   const LIBERADAS = ["engine", "assign", "manual", "mac"];
   const EMAIL_MAC_PADRAO = "labhlainca@gmail.com";   // o mesmo usado pelo mac_request_api.py
 
@@ -2323,7 +2337,9 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
     if (lin.sugestao.automatica) return { fonte: lin.sugestao.fonte, automatica: true };
     return null;
   }
-  const pendente = lin => !efetiva(lin);
+  // Assign escolhido, mas ambíguo (mais de um genótipo): fica pendente até obter o código NMDP na API MAC
+  const aguardaMac = lin => { const d = E.decisoes[lin.chave]; return !!(d && d.fonte === "assign" && lin.assignMac && !d.semCodigo); };
+  const pendente = lin => !efetiva(lin) || aguardaMac(lin);
   function decidir(lin, dados, silencioso) {
     E.desfazer.push({ chave: lin.chave, antes: E.decisoes[lin.chave] || null });
     if (dados === null) delete E.decisoes[lin.chave];
@@ -2462,6 +2478,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
   function marcaDecisao(lin) {
     const ef = efetiva(lin);
     if (!ef) return `<span class="dec pend" title="Pendente de decisão">!</span>`;
+    if (aguardaMac(lin)) return `<span class="dec pend" title="Assign escolhido · aguardando o código NMDP na API MAC">A?</span>`;
     if (ef.fonte === "nenhuma") return "";
     if (ef.automatica && ef.fonte === "nt") return `<span class="dec nao" title="Rejeitado no NGSengine: sai como NT">NT</span>`;
     if (ef.automatica) return `<span class="dec ok" title="Liberado automaticamente (NGSengine)">auto</span>`;
@@ -2472,7 +2489,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
   function alelosCelula(lin) {
     const t = HLA.tipagemLiberada(lin, E.decisoes[lin.chave]);
     let al = t.alelos;
-    if (!al[0] && !al[1]) al = lin.opcoes.engine || lin.opcoes.assign || ["", ""];
+    if (!al[0] && !al[1]) al = (aguardaMac(lin) && lin.opcoes.assign) || lin.opcoes.engine || lin.opcoes.assign || ["", ""];
     return al.map(semPrefixo);
   }
   function celula(lin) {
@@ -2484,7 +2501,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
     const novo = lin.qc.some(q => q.metrica === "novo" && q.nivel === "erro");
     const qc = st === "ausente" ? "" : lin.qcNivel === "erro" ? `<span class="qcdot erro" title="Alerta vermelho de QC"></span>` : lin.qcNivel === "aviso" ? `<span class="qcdot aviso" title="Alerta amarelo de QC"></span>` : "";
     const al = st === "ausente" ? [] : estado === "nt" ? ["NT", ""] : alelosCelula(lin);
-    return `<td><button class="cel st-${st}${rej ? " rej" : ""}${lin.semMac && pendente(lin) ? " semmac" : ""}${vis ? "" : " apagada"}${E.aberto === lin.chave ? " sel" : ""}" data-chave="${h(lin.chave)}"
+    return `<td><button class="cel st-${st}${rej ? " rej" : ""}${(lin.semMac && pendente(lin)) || aguardaMac(lin) ? " semmac" : ""}${vis ? "" : " apagada"}${E.aberto === lin.chave ? " sel" : ""}" data-chave="${h(lin.chave)}"
       title="${h(HLA.STATUS[st].rotulo + (rej ? " · rejeitado no NGSengine" : ""))}" aria-label="${h(lin.id + " " + lin.locus + ": " + HLA.STATUS[st].rotulo)}">
       <span class="ico">${novo ? `<span class="qcdot novo" title="Possível alelo novo"></span>` : ""}${qc}${st !== "ausente" ? marcaDecisao(lin) : ""}</span>
       ${st === "ausente" ? `<span class="t">não tipado</span>` : `<span class="t">${h(al[0] || "")}</span><span class="t">${h(al[1] || "")}</span>
@@ -2508,7 +2525,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
     return `<div class="filtros">
         <input type="search" id="busca" placeholder="Buscar amostra…" value="${h(E.busca)}">
         <div class="seg" id="seg-filtro">${filtros.map(([k, r]) => `<button data-f="${k}" aria-pressed="${E.filtro === k}">${r}</button>`).join("")}</div>
-        ${pendentesMac().length ? `<button class="btn pequeno" data-mac-lote title="Consulta a API MAC do NMDP para todas as tipagens pendentes com “?” no código">“?” NMDP: consultar ${pendentesMac().length} na API MAC</button>` : ""}
+        ${pendentesMac().length ? `<button class="btn pequeno" data-mac-lote title="Consulta a API MAC do NMDP para todas as tipagens pendentes sem código NMDP">Sem código NMDP: consultar ${pendentesMac().length} na API MAC</button>` : ""}
         <span class="muted" style="margin-left:auto">Clique numa tipagem para comparar e decidir · <kbd>?</kbd> atalhos</span>
       </div>
       <div class="legenda">${legenda}<span><i class="qcdot erro"></i>QC crítico</span><span><i class="qcdot aviso"></i>QC atenção</span><span><i class="qcdot novo"></i>alelo novo?</span><span><span class="dec pend">!</span>pendente</span></div>
@@ -2563,9 +2580,11 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
     const ex = e ? e.regioes["Exon+"] || e.regioes["Amplicon"] || {} : {};
     const opc = lin.opcoes;
     const fonteSel = ef ? ef.fonte : null;
-    const prev = f => { const t = HLA.tipagemLiberada(lin, { fonte: f, alelo1: d && d.alelo1, alelo2: d && d.alelo2 }); return t.alelos.filter(Boolean).join(" + ") || "—"; };
+    const prev = f => { const t = HLA.tipagemLiberada(lin, { fonte: f, alelo1: d && d.alelo1, alelo2: d && d.alelo2, semCodigo: true }); return (t.alelos.filter(Boolean).join(" + ") || "—") + (f === "assign" && lin.assignMac ? ` · ${lin.assignMac.genotipos} genótipos → API MAC` : ""); };
     const rev = e && e.revisoes.length ? e.revisoes.map(r => `${r.acao === "Approve" ? "aprovado" : r.acao === "Reject" ? "rejeitado" : h(r.acao)} por ${h(r.nome)} (${h(r.nivel)}) ${r.quando ? new Date(r.quando).toLocaleString("pt-BR") : ""}${r.comentario ? " — “" + h(r.comentario) + "”" : ""}`).join("<br>") : "";
-    const temQ = !!lin.semMac;
+    const aguarda = aguardaMac(lin);
+    const temQ = (!!lin.semMac && !(d && d.fonte === "assign")) || aguarda || (d && d.fonte === "mac");
+    const fm = temQ && (aguarda || lin.engine) ? fonteMac(lin) : null;
     const lista = ordemNavegacao(), pos = lista.findIndex(l => l.chave === chave);
     const motivoDecisao = ef && ef.automatica ? `Liberado automaticamente: ${lin.sugestao.motivo}.` : lin.sugestao.motivo;
     p.innerHTML = `
@@ -2620,9 +2639,12 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
           <button class="btn primario pequeno" id="salvar-manual">Salvar</button>
         </div>
         <textarea class="obs" id="obs" placeholder="Observação (vai para o relatório de conferência)">${h(d ? d.obs || "" : "")}</textarea>
-        ${temQ ? `<div class="aviso-imgt" style="margin-top:8px"><b>Código NMDP incompleto:</b> ${h(e.nmdp1)} + ${h(e.nmdp2)}. Como no app anterior, a ambiguidade (TypingResult/GLString) é enviada à API MAC do NMDP para obter o código.
-          <div class="manual"><input id="mac-email" title="e-mail enviado à API MAC" value="${h(localStorage.getItem("hlaConsenso:macEmail") || EMAIL_MAC_PADRAO)}" style="font-family:var(--sans)"><button class="btn primario pequeno" id="bt-mac">Consultar API MAC</button></div>
-          <div class="historico" id="mac-res">${d && d.fonte === "mac" ? `Código obtido: <span class="mono">${h(d.alelo1)} + ${h(d.alelo2)}</span>` : `IMGT/HLA ${h((e.imgt.match(/\d+\.\d+\.\d+/) || [""])[0])} · ${h(String((e.glResultado || "").length))} caracteres de GLString`}</div></div>` : ""}
+        ${temQ && fm ? `<div class="aviso-imgt" style="margin-top:8px">${d && d.fonte === "mac" ? `<b>Código NMDP obtido na API MAC</b> a partir da ambiguidade do ${d.origem === "assign" ? "Assign" : "NGSengine"}.`
+            : aguarda ? `<b>Assign escolhido, mas ambíguo:</b> a aba Ambiguities tem ${lin.assignMac.genotipos} genótipos possíveis e o Summary mostra só o primeiro. A tipagem fica pendente até obter o código NMDP: a ambiguidade do Assign (convertida para GL) é enviada à API MAC.`
+            : `<b>Código NMDP incompleto:</b> ${h(e.nmdp1)} + ${h(e.nmdp2)}. Como no app anterior, a ambiguidade (TypingResult/GLString) é enviada à API MAC do NMDP para obter o código.`}
+          ${d && d.fonte === "mac" ? "" : `<div class="manual"><input id="mac-email" title="e-mail enviado à API MAC" value="${h(localStorage.getItem("hlaConsenso:macEmail") || EMAIL_MAC_PADRAO)}" style="font-family:var(--sans)"><button class="btn primario pequeno" id="bt-mac">Consultar API MAC</button></div>`}
+          ${aguarda ? `<div class="historico"><a href="#" id="assign-sem-codigo">Liberar o Summary do Assign assim mesmo, sem código NMDP</a></div>` : ""}
+          <div class="historico" id="mac-res">${d && d.fonte === "mac" ? `Código: <span class="mono">${h(d.alelo1)} + ${h(d.alelo2)}</span>` : `IMGT/HLA ${h(fm.imgt)} · GL enviada: <span class="mono" style="word-break:break-all">${h(fm.gl.length > 220 ? fm.gl.slice(0, 220) + "…" : fm.gl)}</span>`}</div></div>` : ""}
         ${d ? `<div class="historico">Decidido por <b>${h(d.usuario)}</b> em ${new Date(d.quando).toLocaleString("pt-BR")} · <a href="#" id="limpar-dec">voltar à sugestão automática</a></div>` : ""}
 
         <div class="rot-pequeno" style="margin-top:16px">Qualidade</div>
@@ -2671,6 +2693,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
     if (fonte === "assign" && !lin.opcoes.assign) return toast("Assign não tem tipagem para liberar neste locus.");
     garantirAnalista(() => {
       decidir(lin, { fonte, obs: ($("#obs") || {}).value || "" });
+      if (fonte === "assign" && lin.assignMac) { toast(`${lin.id} · ${lin.locus}: Assign com ${lin.assignMac.genotipos} genótipos possíveis → pendente até obter o código NMDP na API MAC`); abrirPainel(lin.chave, true); return; }
       toast(`${lin.id} · ${lin.locus}: ${FONTES[fonte]}`);
       if (E.cfg.avancar) navegar(1, true); else abrirPainel(lin.chave, true);
     });
@@ -2704,36 +2727,45 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
         res.innerHTML = `<b>Falha na consulta:</b> ${h(err.message)}. ${/fetch|network|Failed/i.test(err.message) ? "O navegador pode ter sido bloqueado pelo servidor do NMDP (CORS) ou estar sem internet. " : ""}A GLString foi copiada para a área de transferência; se obtiver o código por outro meio, use a opção <b>Manual</b>.`;
       }
     });
+    const asc = p.querySelector("#assign-sem-codigo");
+    if (asc) asc.onclick = ev => { ev.preventDefault(); garantirAnalista(() => { decidir(lin, { fonte: "assign", semCodigo: true, obs: "Summary do Assign liberado sem código NMDP (decisão do analista)" }); abrirPainel(lin.chave, true); }); };
     const lim = p.querySelector("#limpar-dec");
     if (lim) lim.onclick = ev => { ev.preventDefault(); decidir(lin, null); abrirPainel(lin.chave, true); };
   }
 
   // ================================================================ API MAC (individual e em lote)
-  const imgtDe = lin => (lin.engine.imgt.match(/\d+\.\d+\.\d+/) || ["3.62.0"])[0];   // mesmo padrão do app anterior
+  /** De onde vem a ambiguidade enviada à API MAC: Assign escolhido (aba Ambiguities, IMGT do Assign)
+   *  ou NGSengine com "?" (TypingResult/GLString, IMGT do locus — mesmo padrão do app anterior). */
+  function fonteMac(lin) {
+    if (aguardaMac(lin)) return { origem: "assign", gl: lin.assignMac.gl, imgt: lin.assignMac.imgt || (lin.engine ? (lin.engine.imgt.match(/\d+\.\d+\.\d+/) || [""])[0] : "") || "3.62.0" };
+    return { origem: "engine", gl: lin.engine.glResultado, imgt: (lin.engine.imgt.match(/\d+\.\d+\.\d+/) || ["3.62.0"])[0] };
+  }
+  const imgtDe = lin => fonteMac(lin).imgt;
   async function consultarMac(lin, email, cache, silencioso) {
-    const imgt = imgtDe(lin);
-    const k = imgt + "|" + lin.engine.glResultado;
+    const f = fonteMac(lin);
+    const k = f.imgt + "|" + f.gl;
     let p = cache && cache.get(k);
-    if (!p) { p = HLA.codificarMac(lin.engine.glResultado, imgt, email); if (cache) cache.set(k, p); }
+    if (!p) { p = HLA.codificarMac(f.gl, f.imgt, email); if (cache) cache.set(k, p); }
     const txt = await p;
     const [a1, a2] = txt.split("+");
-    decidir(lin, { fonte: "mac", alelo1: (a1 || "").trim(), alelo2: (a2 || "").trim(), obs: `Código obtido na API MAC (IMGT ${imgt}): ${txt}` }, silencioso);
+    const nome = f.origem === "assign" ? "Assign" : "NGSengine";
+    decidir(lin, { fonte: "mac", origem: f.origem, alelo1: (a1 || "").trim(), alelo2: (a2 || "").trim(), obs: `Código obtido na API MAC a partir da ambiguidade do ${nome} (IMGT ${f.imgt}): ${txt}` }, silencioso);
     return txt;
   }
-  const pendentesMac = () => E.cons.linhas.filter(l => l.semMac && l.engine && l.engine.glResultado && pendente(l));
+  const pendentesMac = () => E.cons.linhas.filter(l => aguardaMac(l) || (l.semMac && l.engine && l.engine.glResultado && !E.decisoes[l.chave] && !l.sugestao.automatica));
   function macEmLote() { garantirAnalista(abrirMacLote); }
   function abrirMacLote() {
     const ls = pendentesMac();
     if (!ls.length) return toast("Nenhuma tipagem pendente com “?” no código NMDP.");
     const email0 = localStorage.getItem("hlaConsenso:macEmail") || EMAIL_MAC_PADRAO;
-    const unicas = new Set(ls.map(l => imgtDe(l) + "|" + l.engine.glResultado)).size;
+    const unicas = new Set(ls.map(l => { const f = fonteMac(l); return f.imgt + "|" + f.gl; })).size;
     modal(`<h2>Consultar a API MAC em lote</h2>
-      <p class="sec">${ls.length} tipagem(ns) com “?” no código NMDP${unicas < ls.length ? ` · ${unicas} GLString(s) distintas (as repetidas são consultadas uma vez só)` : ""}. Cada código obtido fica registrado como decisão <b>NGSengine + API MAC</b>, com o seu nome.</p>
+      <p class="sec">${ls.length} tipagem(ns) sem código NMDP (“?” no NGSengine ou Assign ambíguo escolhido)${unicas < ls.length ? ` · ${unicas} GLString(s) distintas (as repetidas são consultadas uma vez só)` : ""}. Cada código obtido fica registrado como decisão <b>NGSengine + API MAC</b>, com o seu nome.</p>
       <div class="manual" style="margin:8px 0"><input id="macl-email" title="e-mail enviado à API MAC" value="${h(email0)}" style="font-family:var(--sans)"></div>
       <div class="dos-barra" style="height:8px;margin:8px 0"><span id="macl-barra" style="display:block;height:100%;width:0;background:var(--accent, #2563eb);border-radius:4px;transition:width .2s"></span></div>
       <div class="sec" id="macl-status">Pronto para consultar.</div>
-      <div style="max-height:46vh;overflow:auto;margin-top:8px"><table class="tabela" style="width:100%"><thead><tr><th>Amostra</th><th>Locus</th><th>Resultado</th></tr></thead>
-        <tbody>${ls.map((l, i) => `<tr><td><b>${h(l.id)}</b></td><td>${h(l.locus)}</td><td class="mono" id="macl-r${i}">aguardando</td></tr>`).join("")}</tbody></table></div>
+      <div style="max-height:46vh;overflow:auto;margin-top:8px"><table class="tabela" style="width:100%"><thead><tr><th>Amostra</th><th>Locus</th><th>Ambiguidade de</th><th>Resultado</th></tr></thead>
+        <tbody>${ls.map((l, i) => `<tr><td><b>${h(l.id)}</b></td><td>${h(l.locus)}</td><td>${fonteMac(l).origem === "assign" ? "Assign" : "NGSengine"}</td><td class="mono" id="macl-r${i}">aguardando</td></tr>`).join("")}</tbody></table></div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap">
         <button class="btn" id="macl-copiar" hidden>Copiar GLStrings que falharam</button>
         <button class="btn" id="macl-fechar">Fechar</button>
@@ -2743,7 +2775,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
       const ir = m.querySelector("#macl-ir"), fechar = m.querySelector("#macl-fechar"), st = m.querySelector("#macl-status"), barra = m.querySelector("#macl-barra");
       fechar.onclick = () => { if (rodando) { parar = true; fechar.textContent = "Parando…"; } else { fecharModal(); render(); } };
       m.querySelector("#macl-copiar").onclick = async () => {
-        const tsv = ["amostra\tlocus\timgt\tglstring", ...falhas.map(l => [l.id, l.locus, imgtDe(l), l.engine.glResultado].join("\t"))].join("\n");
+        const tsv = ["amostra\tlocus\torigem\timgt\tglstring", ...falhas.map(l => { const f = fonteMac(l); return [l.id, l.locus, f.origem, f.imgt, f.gl].join("\t"); })].join("\n");
         try { await navigator.clipboard.writeText(tsv); toast("GLStrings copiadas (tabela com amostra, locus, IMGT e GLString)."); } catch (e) { baixar(tsv, `${lote()}_glstrings_sem_mac.tsv`, "text/tab-separated-values"); }
       };
       ir.onclick = async () => {
@@ -2795,7 +2827,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
     for (const l of pend) { const g = grupoDe(l); if (!grupos.has(g)) grupos.set(g, []); grupos.get(g).push(l); }
     const ordenados = [...grupos.entries()].sort((a, b) => b[1].length - a[1].length);
     const nMac = pendentesMac().length;
-    return `${nMac ? `<div class="aviso-mac"><span><b>${nMac}</b> tipagem(ns) com “?” no código NMDP aguardando a API MAC.</span><button class="btn primario pequeno" data-mac-lote>Consultar todas na API MAC</button></div>` : ""}
+    return `${nMac ? `<div class="aviso-mac"><span><b>${nMac}</b> tipagem(ns) sem código NMDP (“?” no NGSengine ou Assign ambíguo escolhido) aguardando a API MAC.</span><button class="btn primario pequeno" data-mac-lote>Consultar todas na API MAC</button></div>` : ""}
       <p class="sec" style="margin-top:0">As pendências estão agrupadas por locus e tipo de situação. Dá para decidir um grupo inteiro de uma vez (cada tipagem fica registrada com o seu nome) ou abrir uma por uma.</p>
       <div class="grupos">${ordenados.map(([g, ls]) => {
         const [locus, st, rej, qc] = g.split("|");
@@ -2824,7 +2856,8 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
       m.querySelector("#confirmar").onclick = () => garantirAnalista(() => {
         const obs = m.querySelector("#obs-lote") ? m.querySelector("#obs-lote").value : "";
         for (const l of ls) decidir(l, { fonte, obs: obs || `Decisão em lote (${HLA.STATUS[st].rotulo})` }, true);
-        fecharModal(); render(); toast(`${ls.length} tipagem(ns): ${FONTES[fonte]}`);
+        const nMac = ls.filter(aguardaMac).length;
+        fecharModal(); render(); toast(`${ls.length} tipagem(ns): ${FONTES[fonte]}${nMac ? ` · ${nMac} com Assign ambíguo ficaram aguardando a API MAC` : ""}`);
       });
     });
   }
