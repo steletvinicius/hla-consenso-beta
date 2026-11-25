@@ -376,6 +376,7 @@ b.dc-cinza { color: var(--text-primary); background: var(--warning-soft); paddin
 .ld-tab tr { cursor: default; }
 
 .aviso-mac{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:10px 14px;margin:0 0 14px;border:1px solid #fab219;border-left-width:4px;border-radius:8px;background:color-mix(in srgb,#fab219 10%,transparent)}
+a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items: center; }
 
 </style>
 </head>
@@ -383,7 +384,7 @@ b.dc-cinza { color: var(--text-primary); background: var(--warning-soft); paddin
 <header class="topo">
   <div class="marca">
     <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#2a78d6"/><path d="M9 22V10m0 6h6m0-6v12m4-12v12h5" stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round"/></svg>
-    <div>HLA Consenso<small>NGSengine × AlloSeq Assign</small></div>
+    <div>HLA Consenso<small>NGSengine × AlloSeq Assign</small><small id="versao-app"></small></div>
   </div>
   <div class="projeto" id="projeto"></div>
   <nav class="abas hidden" id="abas" role="tablist">
@@ -1650,7 +1651,7 @@ b.dc-cinza { color: var(--text-primary); background: var(--warning-soft); paddin
       const temOpcao = !!lin.opcoes.engine;
       const temTipagemEngine = !!(e && (e.glConclusiva || e.glResultado || e.nmdp1));
       if (st === "ausente" && !temTipagemEngine) return { fonte: "nenhuma", automatica: true, motivo: "Locus não tipado em nenhum software" };
-      if (temOpcao && /\?/.test(lin.opcoes.engine.join(""))) {
+      if (temOpcao && /\?/.test(lin.opcoes.engine.join("") + (e ? (e.nmdp1 || "") + (e.nmdp2 || "") : ""))) {   // "?" no código bruto ou reduzido
         lin.semMac = true;
         return { fonte: null, automatica: false, motivo: "Código NMDP incompleto (“?”): consulte a API MAC para obter o código" };
       }
@@ -1988,8 +1989,9 @@ b.dc-cinza { color: var(--text-primary); background: var(--warning-soft); paddin
     return txt;
   }
 
+  const VERSAO = "2026.11.24";   // atualize a cada versão publicada (aparece no app, no relatório e no gabarito)
   const api = {
-    codificarMac,
+    VERSAO, codificarMac,
     LOCOS, STATUS, LIMITES_PADRAO, enxugarXml, parseXml, lerEngine, lerAssign, reduzirCampos, tresCampos,
     genotiposEngine, genotiposAssign, comparar, avaliarQC, consolidar, tipagemLiberada,
     analisarHemizigose, CANDIDATOS_REF, lerListaDmr, buscarDmr, exportarRedome, aplicarCopias, resultadoFinal, exportarConsensoR, exportarComparativo, exportarInfoAdicionais,
@@ -1997,6 +1999,159 @@ b.dc-cinza { color: var(--text-primary); background: var(--warning-soft); paddin
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else raiz.HLA = api;
+})(typeof self !== "undefined" ? self : this);
+
+</script>
+<script>
+/* HLA Consenso · fluxo completo sem interface (usado pela validação e pelo gabarito).
+   Reproduz o que o app faz entre "arrastar os arquivos" e "exportar":
+   ler TARR + Assign → consolidar → decisões do analista → DRB3/4/5 → arquivos de saída.
+   A validação roda SEM a referência de LD (que muda com o tempo); o LD tem casos próprios. */
+(function (raiz) {
+  const H = raiz.HLA || (typeof require !== "undefined" ? require("./core.js") : null);
+  const A = raiz.Arquivos || (typeof require !== "undefined" ? require("./arquivos.js") : null);
+
+  const CFG_PADRAO = { versaoCfg: 2, limites: {}, ignorarNulos: false, revisarAlertaVermelho: true, rejeitadoNT: true,
+                       excluir: "1044736", refClasseI: "auto", refClasseII: "auto" };
+
+  async function sha256(bytes) {
+    const c = (typeof crypto !== "undefined" && crypto.subtle) ? crypto : require("crypto").webcrypto;
+    const d = await c.subtle.digest("SHA-256", bytes);
+    return [...new Uint8Array(d)].map(b => b.toString(16).padStart(2, "0")).join("");
+  }
+  const bytesDe = x => (typeof x === "string" ? new TextEncoder().encode(x) : x instanceof Uint8Array ? x : new Uint8Array(x));
+
+  /** entradas: { engine: {nome, texto}, assigns: [{nome, buffer}] ou [{nome, abas}], listaDmr: texto|null }
+   *  sessao: { cfg, decisoes, hemi } */
+  async function executar(entradas, sessao) {
+    sessao = sessao || {};
+    const cfg = Object.assign({}, CFG_PADRAO, sessao.cfg || {});
+    delete cfg.checarLD;
+    const engine = H.lerEngine(entradas.engine.texto, entradas.engine.nome);
+    const assigns = [];
+    for (const a of entradas.assigns || []) assigns.push(H.lerAssign(a.abas || await A.lerXlsx(a.buffer), a.nome));
+    const cons = H.consolidar(engine, assigns, cfg);
+    const dec = sessao.decisoes || {}, hemi = sessao.hemi || {};
+    const excluir = String(cfg.excluir || "").split(",").map(s => s.trim()).filter(Boolean);
+    const saidas = resumir(cons, dec, hemi, excluir);
+    if (entradas.listaDmr) {
+      const lista = H.lerListaDmr(entradas.listaDmr);
+      const r = H.exportarRedome(cons, dec, hemi, excluir, lista);
+      saidas.redome = linhasCsv(r.conteudo).map((l, i) => (i ? l.map((v, j) => (j === 1 ? "<data>" : v)) : l));   // a data muda todo dia
+    }
+    return { cons, saidas, cfg };
+  }
+
+  const linhasCsv = t => t.replace(/\n$/, "").split("\n").map(l => l.split(";"));
+
+  function resumir(cons, dec, hemi, excluir) {
+    const tipagens = {};
+    for (const l of cons.linhas) {
+      const t = H.tipagemLiberada(l, dec[l.chave]);
+      tipagens[l.chave] = {
+        situacao: l.comp.status,
+        sugestao: l.sugestao.automatica ? l.sugestao.fonte : "pendente",
+        qc: l.qcNivel,
+        semMac: !!l.semMac,
+        engine: (l.opcoes.engine || []).join(" + "),
+        assign: (l.opcoes.assign || []).join(" + "),
+        copias: l.dosagem && l.dosagem.classe !== null && l.dosagem.classe !== undefined ? String(l.dosagem.classe) : "",
+        liberada: t.estado === "pendente" ? "pendente" : t.alelos.filter(Boolean).join(" + ") || t.estado,
+      };
+    }
+    const drb345 = {};
+    for (const a of H.analisarHemizigose(cons, dec))
+      for (const lc of H.HEMI) {
+        const x = a.locos[lc];
+        if (!x.tipado && !x.esperado) continue;
+        drb345[a.chave + "|" + lc] = { sugerido: x.sugestao, esperadoDRB1: x.esperado === null ? "" : x.esperado, conflito: !!x.conflito,
+          liberado: hemi[a.chave + "|" + lc] !== undefined ? hemi[a.chave + "|" + lc] : x.sugestao };
+      }
+    const rf = H.resultadoFinal(cons, dec, hemi, excluir);
+    const saidas = { modo: cons.modo, tipagens, drb345, resultadoFinal: rf.linhas, pendentes: rf.pendentes,
+                     info: linhasCsv(H.exportarInfoAdicionais(cons)) };
+    if (cons.modo === "consenso") saidas.consenso = H.exportarConsensoR(cons).conteudo.replace(/\n$/, "").split("\n");
+    return saidas;
+  }
+
+  /** Lista de diferenças entre o gabarito e o obtido: [{secao, onde, esperado, obtido}] */
+  function comparar(esp, obt) {
+    const dif = [];
+    const add = (secao, onde, e, o) => dif.push({ secao, onde, esperado: e === undefined ? "(ausente)" : String(e), obtido: o === undefined ? "(ausente)" : String(o) });
+    if (esp.modo !== obt.modo) add("Modo", "modo de análise", esp.modo, obt.modo);
+    for (const [secao, campo] of [["Tipagens (situação, sugestão, QC, liberada)", "tipagens"], ["DRB3/4/5", "drb345"]]) {
+      const E = esp[campo] || {}, O = obt[campo] || {};
+      for (const k of new Set([...Object.keys(E), ...Object.keys(O)])) {
+        if (!E[k] || !O[k]) { add(secao, k, E[k] ? "presente" : undefined, O[k] ? "presente" : undefined); continue; }
+        for (const c of new Set([...Object.keys(E[k]), ...Object.keys(O[k])]))
+          if (String(E[k][c]) !== String(O[k][c])) add(secao, `${k} · ${c}`, E[k][c], O[k][c]);
+      }
+    }
+    const tabela = (secao, e, o, chave) => {
+      if (!e && !o) return;
+      if (!e || !o) return add(secao, "arquivo", e ? "gerado" : undefined, o ? "gerado" : undefined);
+      const cab = e[0] || [];
+      if ((e[0] || []).join("|") !== (o[0] || []).join("|")) add(secao, "cabeçalho", (e[0] || []).join(" "), (o[0] || []).join(" "));
+      const idx = t => new Map(t.slice(1).map((r, i) => [chave ? chave(r, i) : String(i), r]));
+      const ie = idx(e), io = idx(o);
+      for (const k of new Set([...ie.keys(), ...io.keys()])) {
+        const re = ie.get(k), ro = io.get(k);
+        if (!re || !ro) { add(secao, `linha ${k}`, re ? "presente" : undefined, ro ? "presente" : undefined); continue; }
+        for (let j = 0; j < Math.max(re.length, ro.length); j++)
+          if ((re[j] ?? "") !== (ro[j] ?? "")) add(secao, `${k} · ${cab[j] || "coluna " + (j + 1)}`, re[j] ?? "", ro[j] ?? "");
+      }
+    };
+    tabela("Resultado final (.xls)", esp.resultadoFinal, obt.resultadoFinal, r => r[0]);
+    tabela("Informações adicionais", esp.info, obt.info, r => r[1] + " " + r[5]);
+    const csvR = t => t && t.map(l => l.match(/("([^"]|"")*"|NA)/g) || []);
+    tabela("Consenso Engine × Assign", csvR(esp.consenso), csvR(obt.consenso), r => r[1]);
+    if (esp.redome && obt.redome) tabela("REDOME", esp.redome, obt.redome, r => r[r.length - 3]);
+    return dif;
+  }
+
+  /** Gabarito = entradas (nome + hash) + sessão do analista + saídas conferidas. */
+  async function criarGabarito(entradas, sessao, info) {
+    const r = await executar(entradas, sessao);
+    const ent = [{ papel: "engine", nome: entradas.engine.nome, sha256: await sha256(bytesDe(entradas.engine.texto)) }];
+    for (const a of entradas.assigns || []) ent.push({ papel: "assign", nome: a.nome, sha256: a.buffer ? await sha256(bytesDe(a.buffer)) : "" });
+    if (entradas.listaDmr) ent.push({ papel: "lista_redome", nome: entradas.nomeListaDmr || "lista", sha256: await sha256(bytesDe(entradas.listaDmr)) });
+    return {
+      tipo: "gabarito-hla-consenso", formato: 1,
+      versaoApp: H.VERSAO, criadoEm: new Date().toISOString(),
+      conferidoPor: (info && info.analista) || "", observacao: (info && info.observacao) || "",
+      corrida: r.cons.projeto, entradas: ent,
+      sessao: { cfg: r.cfg, decisoes: sessao.decisoes || {}, hemi: sessao.hemi || {} },
+      saidas: r.saidas,
+    };
+  }
+
+  /** Confere uma corrida contra o seu gabarito. arquivos: lista {nome, bytes(Uint8Array)} */
+  async function validarGabarito(gab, arquivos) {
+    const porHash = new Map(), porNome = new Map();
+    for (const f of arquivos) { porHash.set(await sha256(f.bytes), f); porNome.set(f.nome, f); }
+    const faltam = [], trocados = [];
+    const achar = e => { const f = porHash.get(e.sha256); if (f) return f; const n = porNome.get(e.nome); if (n) trocados.push(e.nome); else faltam.push(e.nome); return null; };
+    const entradas = { assigns: [] };
+    for (const e of gab.entradas) {
+      if (e.papel === "lista_redome") { const f = porHash.get(e.sha256); if (f) entradas.listaDmr = decodificar(f.bytes); continue; }
+      const f = achar(e);
+      if (!f) continue;
+      if (e.papel === "engine") entradas.engine = { nome: e.nome, texto: new TextDecoder().decode(f.bytes) };
+      else entradas.assigns.push({ nome: e.nome, buffer: f.bytes.buffer.slice(f.bytes.byteOffset, f.bytes.byteOffset + f.bytes.byteLength) });
+    }
+    if (faltam.length || trocados.length || !entradas.engine)
+      return { ok: false, erro: [faltam.length ? `faltam os arquivos: ${faltam.join(", ")}` : "", trocados.length ? `arquivo com o mesmo nome, mas conteúdo diferente do usado no gabarito: ${trocados.join(", ")}` : ""].filter(Boolean).join(" · ") || "falta o XML do NGSengine", diferencas: [] };
+    const r = await executar(entradas, gab.sessao);
+    const esp = Object.assign({}, gab.saidas);
+    if (!entradas.listaDmr) delete esp.redome;
+    const diferencas = comparar(esp, r.saidas);
+    return { ok: !diferencas.length, diferencas, redomeVerificado: !!(gab.saidas.redome && entradas.listaDmr), n: Object.keys(r.saidas.tipagens).length };
+  }
+  function decodificar(bytes) { const t = new TextDecoder("utf-8").decode(bytes); return t.includes("�") ? new TextDecoder("latin1").decode(bytes) : t; }
+
+  const api = { executar, resumir, comparar, criarGabarito, validarGabarito, sha256, CFG_PADRAO };
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
+  else raiz.Fluxo = api;
 })(typeof self !== "undefined" ? self : this);
 
 </script>
@@ -2109,6 +2264,7 @@ b.dc-cinza { color: var(--text-primary); background: var(--warning-soft); paddin
     if (t.includes("\uFFFD")) t = new TextDecoder("latin1").decode(buf);     // o app antigo lia em latin-1
     E.listaDmr = HLA.lerListaDmr(t);
     E.nomeListaDmr = f.name;
+    E.textoListaDmr = t;
   }
   function atualizarSlots() {
     const A = E.arquivos;
@@ -3052,6 +3208,8 @@ b.dc-cinza { color: var(--text-primary); background: var(--warning-soft); paddin
           <button class="btn" id="exp-info">Informações adicionais <span class="muted">métricas por locus</span></button>
           <button class="btn" id="exp-print">🖨 Relatório de conferência <span class="muted">imprimir / PDF</span></button>
         </div>
+        <h3 style="margin-top:18px">Validação</h3><div class="sub">Depois de conferir esta corrida por inteiro, gere o gabarito. A cada versão nova do app, abra a página <a href="validacao.html" target="_blank">validacao.html</a> e solte o gabarito com os arquivos originais: a corrida é refeita e comparada célula por célula. O gabarito fica no seu computador (não suba para o GitHub).</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px"><button class="btn pequeno" id="exp-gabarito">Gerar gabarito de validação (.json)</button><a class="btn pequeno" href="validacao.html" target="_blank">Abrir a página de validação ↗</a></div>
         <h3 style="margin-top:18px">Sessão</h3><div class="sub">As decisões são salvas automaticamente neste navegador. Para continuar em outro computador, exporte a sessão.</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pequeno" id="exp-sessao">Exportar sessão (.json)</button><button class="btn pequeno" id="imp-sessao">Importar sessão</button><input type="file" id="arq-sessao" accept=".json" hidden>
           <button class="btn pequeno" id="limpar-sessao">Apagar decisões desta corrida</button></div>
@@ -3079,7 +3237,35 @@ b.dc-cinza { color: var(--text-primary); background: var(--warning-soft); paddin
     ];
   }
   arquivosExport.contar = () => 4 + (modoEngine() ? 0 : 1) + (E.listaDmr ? 1 : 0);
-  function sessao() { return { app: "HLA Consenso", versao: 2, projeto: E.cons.projeto, analista: E.analista, exportadoEm: new Date().toISOString(), cfg: E.cfg, decisoes: E.decisoes, hemi: E.hemi }; }
+  function gerarGabarito() {
+    const n = E.cons.linhas.filter(pendente).length;
+    modal(`<h2>Gerar gabarito de validação</h2>
+      <p class="sec">O gabarito registra os arquivos desta corrida (por impressão digital SHA-256), as suas decisões e <b>todas as saídas que o app gera agora</b>. Ele passa a ser a resposta certa contra a qual as próximas versões serão comparadas, por isso só gere depois de conferir o resultado final, o consenso${E.listaDmr ? ", o REDOME" : ""} e as tipagens DRB3/4/5.</p>
+      ${n ? `<p style="color:var(--critical)"><b>Atenção:</b> ainda há ${n} tipagem(ns) pendente(s). Elas entram no gabarito como pendentes (em branco).</p>` : ""}
+      <div class="campo"><label class="sec">Conferido por</label><input type="text" id="gab-nome" value="${h(E.analista || "")}"></div>
+      <div class="campo"><label class="sec">Observação (opcional)</label><input type="text" id="gab-obs" placeholder="ex.: conferida contra o laudo liberado"></div>
+      <label style="display:flex;gap:8px;align-items:flex-start;margin:10px 0"><input type="checkbox" id="gab-ok"> <span>Conferi as saídas desta corrida e elas estão corretas.</span></label>
+      <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" id="gab-cancelar">Cancelar</button><button class="btn primario" id="gab-gerar" disabled>Gerar gabarito</button></div>`, m => {
+      const ok = m.querySelector("#gab-ok"), bt = m.querySelector("#gab-gerar");
+      ok.onchange = () => (bt.disabled = !ok.checked || !m.querySelector("#gab-nome").value.trim());
+      m.querySelector("#gab-nome").oninput = ok.onchange;
+      m.querySelector("#gab-cancelar").onclick = fecharModal;
+      bt.onclick = async () => {
+        bt.disabled = true; bt.textContent = "Gerando…";
+        try {
+          const ent = { engine: E.arquivos.engine, assigns: E.arquivos.assigns, listaDmr: E.listaDmr ? E.textoListaDmr : null, nomeListaDmr: E.nomeListaDmr };
+          const g = await Fluxo.criarGabarito(ent, { cfg: E.cfg, decisoes: E.decisoes, hemi: E.hemi }, { analista: m.querySelector("#gab-nome").value.trim(), observacao: m.querySelector("#gab-obs").value.trim() });
+          // o gabarito é recalculado sem a referência de LD; confere se o resultado final bate com o que está na tela
+          const tela = HLA.resultadoFinal(E.cons, E.decisoes, E.hemi, excluirLista()).linhas;
+          const dif = JSON.stringify(tela) !== JSON.stringify(g.saidas.resultadoFinal);
+          baixar(JSON.stringify(g, null, 1), `${lote()}_gabarito_validacao.json`, "application/json");
+          fecharModal();
+          toast(dif ? "Gabarito gerado, mas o resultado final sem a referência de LD difere da tela (há tipagens que só ficaram pendentes por alerta de LD): decida-as e gere de novo." : "Gabarito gerado. Guarde-o junto com os arquivos da corrida.");
+        } catch (e) { console.error(e); bt.disabled = false; bt.textContent = "Gerar gabarito"; toast("Erro ao gerar o gabarito: " + e.message); }
+      };
+    });
+  }
+  function sessao() { return { app: "HLA Consenso", versao: 2, versaoApp: HLA.VERSAO, projeto: E.cons.projeto, analista: E.analista, exportadoEm: new Date().toISOString(), cfg: E.cfg, decisoes: E.decisoes, hemi: E.hemi }; }
   function confirmarPendencias(acao) {
     const n = E.cons.linhas.filter(pendente).length;
     if (!n) return acao();
@@ -3095,7 +3281,7 @@ b.dc-cinza { color: var(--text-primary); background: var(--warning-soft); paddin
     const marca = l => { const ef = efetiva(l); return !ef ? " [pendente]" : ef.fonte === "assign" ? " ᴬ" : ef.fonte === "manual" ? " ᴹ" : ef.fonte === "mac" ? " ᴹᴬᶜ" : ""; };
     const decisoes = E.cons.linhas.filter(l => E.decisoes[l.chave]);
     $("#relatorio").innerHTML = `<h1>Relatório de conferência NGSengine × Assign — ${h(E.cons.projeto)}</h1>
-      <div>${h(E.engine.software)} ${h(E.engine.versao)} · ${E.assigns[0] ? h(E.assigns[0].software) + " · " + h(E.assigns[0].referencia) : "sem Assign"} · Gerado em ${new Date().toLocaleString("pt-BR")} por ${h(E.analista || "—")}</div>
+      <div>${h(E.engine.software)} ${h(E.engine.versao)} · ${E.assigns[0] ? h(E.assigns[0].software) + " · " + h(E.assigns[0].referencia) : "sem Assign"} · Gerado em ${new Date().toLocaleString("pt-BR")} por ${h(E.analista || "—")} · HLA Consenso ${h(HLA.VERSAO)}</div>
       <div>Concordância: ${c.conc.length}/${c.comp.length} locos comparáveis · ${c.liberadas.length} tipagens liberadas · ${c.pend.length} pendentes · ${decisoes.length} decisões do analista</div>
       <table><thead><tr><th>Amostra</th>${locos.map(l => `<th>${h(l.replace("HLA-", ""))}</th>`).join("")}</tr></thead><tbody>
       ${(() => { const rf = HLA.resultadoFinal(E.cons, E.decisoes, E.hemi, []).linhas; const idx = new Map(rf.slice(1).map(r => [r[0], r])); return amostras.map(a => `<tr><td class="mono">${h(a.id)}</td>${locos.map(lc => { const l = a.linhas[lc]; const r = idx.get(a.id); const ci = HLA.LOCOS_FINAL.indexOf(lc); if (!l || !r || ci < 0) return "<td></td>"; const v = [r[1 + 2 * ci], r[2 + 2 * ci]].filter(Boolean).map(semPrefixo).join(" / "); return `<td class="mono">${h(v)}${v ? h(marca(l)) : ""}<br><span style="color:#666">${l.comp.status === "ausente" ? "" : h(ROT_CURTO[l.comp.status])}</span></td>`; }).join("")}</tr>`).join(""); })()}
@@ -3142,6 +3328,7 @@ b.dc-cinza { color: var(--text-primary); background: var(--warning-soft); paddin
     const adm = app.querySelector("#arq-dmr");
     if (adm) adm.onchange = async () => { try { await carregarListaDmr(adm.files[0]); render(); toast(`Lista do REDOME carregada: ${E.listaDmr.n} pacientes.`); } catch (e) { toast("Lista inválida: " + e.message); } };
     bind("#exp-print", imprimirRelatorio);
+    bind("#exp-gabarito", gerarGabarito);
     bind("#exp-sessao", () => baixar(JSON.stringify(sessao(), null, 2), `${lote()}_sessao_decisoes.json`, "application/json"));
     bind("#imp-sessao", () => app.querySelector("#arq-sessao").click());
     bind("#limpar-sessao", () => modal(`<h2>Apagar as decisões desta corrida?</h2><p class="sec">As ${Object.keys(E.decisoes).length} decisões do analista serão removidas deste navegador. As sugestões automáticas continuam.</p><div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" id="nao">Cancelar</button><button class="btn primario" id="sim">Apagar</button></div>`, m => {
@@ -3224,6 +3411,7 @@ b.dc-cinza { color: var(--text-primary); background: var(--warning-soft); paddin
     const r = document.documentElement, escuro = r.dataset.theme ? r.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
     r.dataset.theme = escuro ? "light" : "dark"; localStorage.setItem("hlaConsenso:tema", r.dataset.theme);
   };
+  $("#versao-app").textContent = "versão " + HLA.VERSAO;
   const tema = localStorage.getItem("hlaConsenso:tema"); if (tema) document.documentElement.dataset.theme = tema;
   window.HLAConsenso = { E, receberArquivos, analisar };   // para testes
 })();
