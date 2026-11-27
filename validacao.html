@@ -382,6 +382,44 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
 .tabela-sessoes { border-collapse: collapse; width: 100%; }
 .tabela-sessoes td { padding: 4px 8px 4px 0; border-top: 1px solid var(--border); vertical-align: middle; }
 
+/* revisão por gene */
+.gv-abas { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 12px; }
+.gv-aba { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 9px; border: 1px solid var(--border); background: var(--surface-1); font: 600 14px var(--sans); color: var(--text-secondary); cursor: pointer; }
+.gv-aba[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.gv-aba .cont { font-size: 11px; background: var(--critical); color: #fff; border-radius: 99px; padding: 0 6px; line-height: 16px; }
+.gv-aba .ok-g { font-size: 12px; color: var(--good); } .gv-aba[aria-pressed="true"] .ok-g { color: #fff; }
+.gv-barra { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+.gv-lote { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-1); margin-bottom: 8px; font-size: 13px; }
+.gv-lote.ativo { border-color: var(--accent); background: var(--accent-soft); position: sticky; top: 0; z-index: 3; }
+.gv-lote .sep { width: 1px; align-self: stretch; background: var(--border); margin: 0 4px; }
+.btn.pequeno.primario { color: #fff; }
+.gv-wrap { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); overflow: auto; }
+table.gv { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.gv th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--text-muted); font-weight: 600; padding: 8px 8px; border-bottom: 1px solid var(--border); background: var(--surface-2); position: sticky; top: 0; z-index: 1; }
+table.gv td { padding: 5px 8px; border-bottom: 1px solid var(--surface-2); vertical-align: middle; }
+table.gv tr.pend td { background: color-mix(in srgb, var(--critical) 4%, transparent); }
+table.gv tr.sel td { background: var(--accent-soft); }
+table.gv td.ck, table.gv th.ck { width: 28px; text-align: center; }
+table.gv td.fl { min-width: 180px; }
+.gv-am { font: 700 13px var(--mono); background: none; border: none; color: var(--text-primary); cursor: pointer; padding: 4px 2px; text-decoration: underline dotted var(--text-muted); }
+.gv-st { font-size: 11.5px; padding: 1px 8px; white-space: nowrap; }
+.gv-sw, .gv-lib { display: grid; grid-template-columns: 1fr; text-align: left; min-width: 150px; padding: 5px 9px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-1); cursor: pointer; font: 12.5px var(--mono); color: var(--text-primary); position: relative; }
+.gv-sw:hover { border-color: var(--accent); }
+.gv-sw .s { font: 11px var(--sans); color: var(--text-muted); margin-top: 2px; }
+.gv-sw.escolhido { border: 2px solid var(--accent); background: var(--accent-soft); padding: 4px 8px; }
+.gv-sw.lado.escolhido { border-color: var(--side); background: var(--side-soft); }
+.gv-sw.rej { background: repeating-linear-gradient(135deg, var(--critical-soft) 0 8px, var(--surface-1) 8px 16px); }
+.gv-sw.rej.escolhido { background: var(--accent-soft); }
+.gv-lib { background: var(--surface-2); font-weight: 600; padding-left: 40px; }
+.gv-lib .mk { position: absolute; left: 7px; top: 50%; transform: translateY(-50%); }
+.gv-lib.pend { border-color: var(--critical); background: var(--critical-soft); }
+.gv-vazio { color: var(--text-muted); font-size: 12px; }
+.gv-chip { display: inline-block; font-size: 11px; padding: 0 7px; border-radius: 99px; margin: 1px 3px 1px 0; border: 1px solid var(--border); line-height: 18px; white-space: nowrap; }
+.gv-chip.erro { background: var(--critical-soft); border-color: var(--critical); }
+.gv-chip.aviso { background: var(--warning-soft); border-color: var(--warning); }
+.gv-chip.info { background: var(--surface-2); color: var(--text-secondary); }
+.gv-rodape { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
+
 </style>
 <style>
   .val { max-width: 1100px; margin: 0 auto; padding: 24px 20px 60px; }
@@ -2035,7 +2073,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
     return txt;
   }
 
-  const VERSAO = "2026.11.24-3";   // atualize a cada versão publicada (aparece no app, no relatório e no gabarito)
+  const VERSAO = "2026.11.27-2";   // atualize a cada versão publicada (aparece no app, no relatório e no gabarito)
   const api = {
     VERSAO, codificarMac,
     LOCOS, STATUS, LIMITES_PADRAO, enxugarXml, parseXml, lerEngine, lerAssign, reduzirCampos, tresCampos,
@@ -2234,7 +2272,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
     { id: "108", lc: { "HLA-B": { prof: 20 }, "HLA-DPB1": { a: "" }, "HLA-DRB1": { e: "DRB1*03:01:01+DRB1*11:01:01" }, "HLA-DRB3": { e: "DRB3*01:01:02+DRB3*02:02:01", reads: 1400 } } },
     { id: "109", lc: { "HLA-A": { e: "A*02:01:01+A*02:01:01", reads: 2000 }, "HLA-DRB1": { e: "DRB1*13:01:01+DRB1*15:01:01" }, "HLA-DRB3": { e: "DRB3*01:01:02+DRB3*01:01:02", reads: 700 } } },
     { id: "110", lc: { "HLA-DQB1": { a: "DQB1*02:01:01 + DQB1*06:02:01/DQB1*02:01:01 + DQB1*03:276N" }, "HLA-DRB1": { e: "DRB1*01:01:01+DRB1*10:01:01" } } },
-    { id: "111", lc: { "HLA-B": { st: "Rejected", nmdp: ["B*07:??", "B*44:02:01:01"] }, "HLA-DRB1": { e: "DRB1*01:01:01+DRB1*08:01:01" } } },
+    { id: "111", lc: { "HLA-B": { st: "Rejected", nmdp: ["B*07:??", "B*44:02:01:01"], a: "B*07:02:01 + B*44:02:01/B*07:02:01 + B*44:27" }, "HLA-DRB1": { e: "DRB1*01:01:01+DRB1*08:01:01" } } },
     { id: "112", lc: { "HLA-DPB1": { a: "DPB1*04:01:01 + DPB1*02:01:02/DPB1*04:01:01 + DPB1*464:01" }, "HLA-DRB1": { e: "DRB1*01:01:01+DRB1*08:01:01" } } },
     { id: "113", lc: { "HLA-A": { a: "A*02:01:01:01 + A*24:02:01/A*02:01:01:02 + A*24:02:01" }, "HLA-DRB1": { e: "DRB1*01:01:01+DRB1*08:01:01" } } },
     { id: "1044736", lc: { "HLA-DRB1": { e: "DRB1*01:01:01+DRB1*01:01:01" } } },
@@ -2397,6 +2435,14 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
     // ---------- 3b. códigos NMDP (API MAC)
     const G3b = "3b. Código NMDP e API MAC (NGSengine e Assign)";
     t(G3b, "Rejeitado no NGSengine com “?” → NT, sem ir para a API MAC", async () => tip(await semDec(), "111|HLA-B", { sugestao: "nt", liberada: "NT + NT" }));
+    t(G3b, "Rejeitado no NGSengine → liberar o Assign (não ambíguo) entra direto no resultado", async () => celulas(await F.executar(ent, { decisoes: { "102|HLA-A": { fonte: "assign" } } }), "102", "HLA-A", ["A*02:01:01", "A*24:02:01"]));
+    t(G3b, "Rejeitado com “?” → liberar o Assign ambíguo fica pendente; o código da API MAC (do Assign) entra no resultado", async () => {
+      const r1 = await F.executar(ent, { decisoes: { "111|HLA-B": { fonte: "assign" } } });
+      tip(r1, "111|HLA-B", { liberada: "pendente" });
+      const l = r1.cons.linhas.find(x => x.chave === "111|HLA-B");
+      igual(l.assignMac && l.assignMac.gl, "B*07:02:01+B*44:02:01|B*07:02:01+B*44:27", "GL do Assign enviada");
+      celulas(await F.executar(ent, { decisoes: { "111|HLA-B": { fonte: "mac", origem: "assign", alelo1: "B*07:02:01", alelo2: "B*44:XYZ" } } }), "111", "HLA-B", ["B*07:02:01", "B*44:XYZ"]);
+    });
     t(G3b, "Assign com mais de um genótipo em 3 campos → precisa de código NMDP (GL no formato da API)", async () => {
       const l = (await semDec()).cons.linhas.find(x => x.chave === "112|HLA-DPB1");
       igual(l.assignMac && l.assignMac.gl, "DPB1*04:01:01+DPB1*02:01:02|DPB1*04:01:01+DPB1*464:01", "GL enviada"); igual(l.assignMac.imgt, "3.64.0", "versão IMGT do Assign");

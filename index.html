@@ -382,6 +382,44 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
 .tabela-sessoes { border-collapse: collapse; width: 100%; }
 .tabela-sessoes td { padding: 4px 8px 4px 0; border-top: 1px solid var(--border); vertical-align: middle; }
 
+/* revisão por gene */
+.gv-abas { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 12px; }
+.gv-aba { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 9px; border: 1px solid var(--border); background: var(--surface-1); font: 600 14px var(--sans); color: var(--text-secondary); cursor: pointer; }
+.gv-aba[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.gv-aba .cont { font-size: 11px; background: var(--critical); color: #fff; border-radius: 99px; padding: 0 6px; line-height: 16px; }
+.gv-aba .ok-g { font-size: 12px; color: var(--good); } .gv-aba[aria-pressed="true"] .ok-g { color: #fff; }
+.gv-barra { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+.gv-lote { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-1); margin-bottom: 8px; font-size: 13px; }
+.gv-lote.ativo { border-color: var(--accent); background: var(--accent-soft); position: sticky; top: 0; z-index: 3; }
+.gv-lote .sep { width: 1px; align-self: stretch; background: var(--border); margin: 0 4px; }
+.btn.pequeno.primario { color: #fff; }
+.gv-wrap { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); overflow: auto; }
+table.gv { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.gv th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--text-muted); font-weight: 600; padding: 8px 8px; border-bottom: 1px solid var(--border); background: var(--surface-2); position: sticky; top: 0; z-index: 1; }
+table.gv td { padding: 5px 8px; border-bottom: 1px solid var(--surface-2); vertical-align: middle; }
+table.gv tr.pend td { background: color-mix(in srgb, var(--critical) 4%, transparent); }
+table.gv tr.sel td { background: var(--accent-soft); }
+table.gv td.ck, table.gv th.ck { width: 28px; text-align: center; }
+table.gv td.fl { min-width: 180px; }
+.gv-am { font: 700 13px var(--mono); background: none; border: none; color: var(--text-primary); cursor: pointer; padding: 4px 2px; text-decoration: underline dotted var(--text-muted); }
+.gv-st { font-size: 11.5px; padding: 1px 8px; white-space: nowrap; }
+.gv-sw, .gv-lib { display: grid; grid-template-columns: 1fr; text-align: left; min-width: 150px; padding: 5px 9px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-1); cursor: pointer; font: 12.5px var(--mono); color: var(--text-primary); position: relative; }
+.gv-sw:hover { border-color: var(--accent); }
+.gv-sw .s { font: 11px var(--sans); color: var(--text-muted); margin-top: 2px; }
+.gv-sw.escolhido { border: 2px solid var(--accent); background: var(--accent-soft); padding: 4px 8px; }
+.gv-sw.lado.escolhido { border-color: var(--side); background: var(--side-soft); }
+.gv-sw.rej { background: repeating-linear-gradient(135deg, var(--critical-soft) 0 8px, var(--surface-1) 8px 16px); }
+.gv-sw.rej.escolhido { background: var(--accent-soft); }
+.gv-lib { background: var(--surface-2); font-weight: 600; padding-left: 40px; }
+.gv-lib .mk { position: absolute; left: 7px; top: 50%; transform: translateY(-50%); }
+.gv-lib.pend { border-color: var(--critical); background: var(--critical-soft); }
+.gv-vazio { color: var(--text-muted); font-size: 12px; }
+.gv-chip { display: inline-block; font-size: 11px; padding: 0 7px; border-radius: 99px; margin: 1px 3px 1px 0; border: 1px solid var(--border); line-height: 18px; white-space: nowrap; }
+.gv-chip.erro { background: var(--critical-soft); border-color: var(--critical); }
+.gv-chip.aviso { background: var(--warning-soft); border-color: var(--warning); }
+.gv-chip.info { background: var(--surface-2); color: var(--text-secondary); }
+.gv-rodape { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
+
 </style>
 </head>
 <body>
@@ -392,7 +430,8 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
   </div>
   <div class="projeto" id="projeto"></div>
   <nav class="abas hidden" id="abas" role="tablist">
-    <button role="tab" data-aba="placa" aria-selected="true">Placa</button>
+    <button role="tab" data-aba="genes" aria-selected="true">Por gene</button>
+    <button role="tab" data-aba="placa">Placa</button>
     <button role="tab" data-aba="revisao">Revisão <span class="cont" id="cont-pend">0</span></button>
     <button role="tab" data-aba="hemi">DRB3/4/5 <span class="cont" id="cont-hemi">0</span></button>
     <button role="tab" data-aba="ld">Ligação</button>
@@ -2007,7 +2046,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
     return txt;
   }
 
-  const VERSAO = "2026.11.24-3";   // atualize a cada versão publicada (aparece no app, no relatório e no gabarito)
+  const VERSAO = "2026.11.27-2";   // atualize a cada versão publicada (aparece no app, no relatório e no gabarito)
   const api = {
     VERSAO, codificarMac,
     LOCOS, STATUS, LIMITES_PADRAO, enxugarXml, parseXml, lerEngine, lerAssign, reduzirCampos, tresCampos,
@@ -2196,7 +2235,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
     engine: null, assigns: [], dmr: null, cons: null,
     decisoes: {}, hemi: {}, desfazer: [],
     cfg: { versaoCfg: 2, limites: {}, ignorarNulos: false, revisarAlertaVermelho: true, rejeitadoNT: true, excluir: "1044736", avancar: true, refClasseI: "auto", refClasseII: "auto" },
-    aba: "placa", filtro: "todos", busca: "", aberto: null,
+    aba: "genes", gene: null, genFiltro: "todos", selGenes: new Set(), filtro: "todos", busca: "", aberto: null,
     analista: localStorage.getItem("hlaConsenso:analista") || "",
     refLD: null, ldSoIncomuns: false, listaDmr: null, nomeListaDmr: "",
   };
@@ -2439,7 +2478,8 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
   function render() {
     renderTopo();
     const app = $("#tela-app");
-    if (E.aba === "placa") app.innerHTML = renderKpis() + renderPlaca();
+    if (E.aba === "genes") app.innerHTML = renderKpis() + renderGenes();
+    else if (E.aba === "placa") app.innerHTML = renderKpis() + renderPlaca();
     else if (E.aba === "revisao") app.innerHTML = renderKpis() + renderRevisao();
     else if (E.aba === "qualidade") app.innerHTML = renderQualidade();
     else if (E.aba === "hemi") app.innerHTML = renderHemi();
@@ -2582,6 +2622,168 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
       </div>
       <div class="legenda">${legenda}<span><i class="qcdot erro"></i>QC crítico</span><span><i class="qcdot aviso"></i>QC atenção</span><span><i class="qcdot novo"></i>alelo novo?</span><span><span class="dec pend">!</span>pendente</span></div>
       <div class="placa-wrap"><table class="placa"><thead><tr><th class="amostra-h">Amostra</th>${locos.map(l => `<th>${h(l.replace("HLA-", ""))}</th>`).join("")}</tr></thead><tbody>${linhas}</tbody></table></div>`;
+  }
+
+
+  // ================================================================ revisão por gene (tela principal)
+  /* Uma aba por gene; linhas = amostras; colunas lado a lado: NGSengine | Assign | liberado | alertas.
+     Clicar na coluna do software libera aquela tipagem; caixas de seleção para decidir em lote. */
+  const ROT_QC = { profMin: "Profundidade", sinalRuido: "Sinal/ruído", ruidoMax: "Ruído", segBaseMin: "2ª base", mapPct: "Map %", interrogacoes: "Posição ?",
+    novo: "Alelo novo?", avisoEngine: "Aviso NGSengine", q30: "Q30", cobertura: "Cobertura", balanco: "Balanço", dosagem: "Dosagem", ld: "LD" };
+  function genesPresentes() { return E.cons.locos.filter(lc => E.cons.linhas.some(l => l.locus === lc && (l.engine || l.assign))); }
+  function linhasDoGene(lc) { return E.cons.linhas.filter(l => l.locus === lc).sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true })); }
+  const temAlerta = l => l.qcNivel === "erro" || l.qcNivel === "aviso" || l.semMac || !!l.assignMac && aguardaMac(l);
+  function filtrarGene(ls) {
+    const f = E.genFiltro;
+    if (f === "pendentes") return ls.filter(pendente);
+    if (f === "divergencias") return ls.filter(l => !["identico", "aprovado", "ausente"].includes(l.comp.status));
+    if (f === "alertas") return ls.filter(temAlerta);
+    if (f === "rejeitados") return ls.filter(ehRej);
+    return ls;
+  }
+  function chipsAlerta(l, hemiInfo) {
+    const out = [];
+    const chip = (cls, txt, tit) => out.push(`<span class="gv-chip ${cls}" title="${h(tit || txt)}">${h(txt)}</span>`);
+    if (ehRej(l)) chip("erro", "⛔ Rejeitado", `Locus ${l.engine.status || "não aprovado"} no NGSengine`);
+    if (l.semMac) chip("aviso", "“?” NMDP", `Código NMDP incompleto no NGSengine: ${l.engine.nmdp1} + ${l.engine.nmdp2}`);
+    if (l.assignMac) chip(aguardaMac(l) ? "aviso" : "info", `Assign: ${l.assignMac.genotipos} genótipos`, aguardaMac(l) ? "Assign escolhido: aguardando o código NMDP na API MAC" : "O Assign tem mais de um genótipo: se for liberado, precisa de código NMDP (API MAC)");
+    const vistos = new Set();
+    for (const q of l.qc) {
+      if (q.nivel === "info" && q.metrica !== "edicoes") continue;
+      const k = q.metrica + q.nivel; if (vistos.has(k)) continue; vistos.add(k);
+      const txt = q.metrica === "ld" ? (/nunca/.test(q.texto) ? "LD: nunca visto" : /sem registro/.test(q.texto) ? "LD: alelo sem registro" : "LD: incomum") : q.metrica === "edicoes" ? "Edições" : ROT_QC[q.metrica] || q.metrica;
+      chip(q.nivel, txt, q.texto);
+    }
+    if (hemiInfo) {
+      if (hemiInfo.conflito) chip("erro", "DRB1 × cópias", hemiInfo.conflito);
+      else if (hemiInfo.tipado) chip("info", `${hemiInfo.copias} cópia${hemiInfo.copias === 1 ? "" : "s"}`, hemiInfo.motivo || "Conferência DRB3/4/5");
+    }
+    return out.join("") || `<span class="muted" style="font-size:12px">—</span>`;
+  }
+  function renderGenes() {
+    const genes = genesPresentes();
+    if (!E.gene || !genes.includes(E.gene)) E.gene = genes[0];
+    const lc = E.gene, todas = linhasDoGene(lc);
+    const hemi0 = HLA.HEMI.includes(lc) ? new Map(HLA.analisarHemizigose(E.cons, E.decisoes).map(a => [a.chave, a.locos[lc]])) : null;
+    // não tipado em nenhum software, sem decisão e sem conflito com o DRB1: vai para uma linha compacta no fim
+    const vazia = l => l.comp.status === "ausente" && !(l.engine && l.opcoes.engine) && !l.opcoes.assign && !E.decisoes[l.chave] && !(hemi0 && hemi0.get(l.chaveAmostra) && hemi0.get(l.chaveAmostra).conflito);
+    const naoTipadas = todas.filter(vazia);
+    const ls = filtrarGene(todas.filter(l => !vazia(l)));
+    const soE = modoEngine();
+    const hemi = hemi0;
+    for (const k of [...E.selGenes]) if (!E.porChave.has(k) || E.porChave.get(k).locus !== lc) E.selGenes.delete(k);
+    const sel = [...E.selGenes].map(k => E.porChave.get(k)).filter(Boolean);
+    const nMacGene = pendentesMac().filter(l => l.locus === lc).length;
+    const abas = genes.map(g => {
+      const lsG = E.cons.linhas.filter(l => l.locus === g), np = lsG.filter(pendente).length;
+      return `<button class="gv-aba" data-gene="${h(g)}" aria-pressed="${g === lc}">${h(g.replace("HLA-", ""))}${np ? `<span class="cont" title="${np} pendente(s)">${np}</span>` : `<span class="ok-g" title="sem pendências">✓</span>`}</button>`;
+    }).join("");
+    const filtros = [["todos", `Todas (${todas.length - naoTipadas.length})`], ["pendentes", `Pendentes (${todas.filter(pendente).length})`], ["divergencias", soE ? "Revisar" : "Divergências"], ["alertas", "Com alertas"], ["rejeitados", `Rejeitados (${todas.filter(ehRej).length})`]];
+    const idx = genes.indexOf(lc), prox = genes[idx + 1];
+    const linhas = ls.map(l => {
+      const e = l.engine, a = l.assign, ef = efetiva(l), d = E.decisoes[l.chave];
+      const fonte = ef ? ef.fonte : null;
+      const daAssign = fonte === "assign" || (fonte === "mac" && d && d.origem === "assign");
+      const daEngine = fonte === "engine" || (fonte === "mac" && !(d && d.origem === "assign"));
+      const hi = hemi ? hemi.get(l.chaveAmostra) : null;
+      const copias = hi ? (E.hemi[l.chaveAmostra + "|" + lc] !== undefined ? E.hemi[l.chaveAmostra + "|" + lc] : hi.sugestao) : null;
+      const t = HLA.tipagemLiberada(l, d);
+      let lib = t.estado === "nt" ? ["NT", "NT"] : t.alelos.slice();
+      if (hi && t.estado !== "nt" && t.estado !== "pendente") lib = HLA.aplicarCopias(lib, copias);
+      const pend = pendente(l);
+      const nGenE = l.comp.paresEngine ? l.comp.paresEngine.length : e && e.glConclusiva ? e.glConclusiva.split("|").length : 0;
+      const nGenA = l.comp.paresAssign ? l.comp.paresAssign.length : 0;
+      const al2 = v => `<span class="a">${h(semPrefixo(v[0]) || "—")}</span><span class="a">${h(semPrefixo(v[1]) || "")}</span>`;
+      const st = l.comp.status;
+      const celE = e && l.opcoes.engine
+        ? `<button class="gv-sw${daEngine ? " escolhido" : ""}${ehRej(l) ? " rej" : ""}" data-gv="engine" data-chave="${h(l.chave)}" title="${h((e.glConclusiva || e.glResultado || "") + "\nClique para liberar o NGSengine")}">${al2(l.opcoes.engine)}<span class="s">${ehRej(l) ? "⛔ rejeitado" : e.status === "Approved" ? "aprovado" : h(e.status || "sem revisão")}${nGenE > 1 ? ` · ${nGenE} genótipos` : ""}${fonte === "mac" && !daAssign ? " · MAC" : ""}</span></button>`
+        : `<span class="gv-vazio">${e ? "sem tipagem" : "ausente"}</span>`;
+      const celA = soE ? "" : `<td>${a && l.opcoes.assign
+        ? `<button class="gv-sw lado${daAssign ? " escolhido" : ""}" data-gv="assign" data-chave="${h(l.chave)}" title="${h((a.gl || "") + "\nClique para liberar o Assign")}">${al2(l.opcoes.assign)}<span class="s">${nGenA > 1 ? `${nGenA} genótipos${l.assignMac ? " → API MAC" : ""}` : "1 genótipo"}${daAssign && fonte === "mac" ? " · MAC" : ""}</span></button>`
+        : `<span class="gv-vazio">${a ? "não tipado" : "ausente"}</span>`}</td>`;
+      const marca = st === "ausente" && !e ? "" : marcaDecisao(l);
+      return `<tr class="${pend ? "pend" : ""}${E.aberto === l.chave ? " sel" : ""}">
+        <td class="ck"><input type="checkbox" data-sel="${h(l.chave)}" ${E.selGenes.has(l.chave) ? "checked" : ""} aria-label="selecionar ${h(l.id)}"></td>
+        <td class="am"><button class="gv-am" data-abrir="${h(l.chave)}" title="Abrir detalhes (métricas, genótipos, manual)">${h(l.id)}</button></td>
+        ${soE ? "" : `<td><span class="badge st-${st} gv-st" title="${h(HLA.STATUS[st].rotulo)}">${ICONE[st]} ${h(ROT_CURTO[st])}</span></td>`}
+        <td>${celE}</td>${celA}
+        <td><button class="gv-lib${pend ? " pend" : ""}" data-abrir="${h(l.chave)}" title="${h(ef ? (ef.automatica ? "Liberado automaticamente: " + l.sugestao.motivo : "Decisão do analista") : l.sugestao.motivo)}"><span class="mk">${marca}</span>${pend ? `<span class="a muted">${aguardaMac(l) ? "aguardando API MAC" : "decidir"}</span>` : t.estado === "nt" ? `<span class="a" style="color:var(--critical)">NT</span>` : !lib[0] && !lib[1] ? `<span class="a muted">não tipado</span>` : al2(lib)}</button></td>
+        <td class="fl">${st === "ausente" && !e ? "" : chipsAlerta(l, hi && (hi.tipado || hi.esperado) ? { conflito: E.hemi[l.chaveAmostra + "|" + lc] === undefined ? hi.conflito : "", tipado: hi.tipado, copias, motivo: hi.motivo } : null)}</td></tr>`;
+    }).join("");
+    const nPendG = todas.filter(pendente).length;
+    return `<div class="gv-abas" role="tablist">${abas}</div>
+      <div class="gv-barra">
+        <div class="seg" id="gv-filtro">${filtros.map(([k, r]) => `<button data-gf="${k}" aria-pressed="${E.genFiltro === k}">${r}</button>`).join("")}</div>
+        ${nMacGene ? `<button class="btn pequeno" data-mac-lote>Sem código NMDP: consultar ${pendentesMac().length} na API MAC</button>` : ""}
+        <span class="muted" style="margin-left:auto;font-size:12.5px">Clique na coluna do software para liberar aquela tipagem · no nº da amostra para os detalhes · <kbd>[</kbd> <kbd>]</kbd> troca de gene</span>
+      </div>
+      <div class="gv-lote ${sel.length ? "ativo" : ""}">
+        <span><b>${sel.length}</b> selecionada(s)</span>
+        <button class="btn pequeno" data-gsel="pendentes">Selecionar pendentes</button>
+        <button class="btn pequeno" data-gsel="visiveis">Todas as visíveis</button>
+        ${sel.length ? `<button class="btn pequeno" data-gsel="nenhuma">Limpar</button><span class="sep"></span>
+        <button class="btn pequeno primario" data-glote="engine">Liberar NGSengine</button>
+        ${soE ? "" : `<button class="btn pequeno primario" data-glote="assign">Liberar Assign</button>`}
+        <button class="btn pequeno" data-glote="nt">NT</button>
+        <button class="btn pequeno" data-glote="limpar">Voltar à sugestão</button>` : ""}
+      </div>
+      <div class="gv-wrap"><table class="gv">
+        <thead><tr><th class="ck"><input type="checkbox" id="gv-todas" title="Selecionar todas as visíveis"></th><th>Amostra</th>${soE ? "" : "<th>Comparação</th>"}<th>NGSengine</th>${soE ? "" : "<th>Assign</th>"}<th>Liberado</th><th>Alertas</th></tr></thead>
+        <tbody>${linhas || `<tr><td colspan="7" class="muted" style="padding:18px">Nenhuma amostra neste filtro.</td></tr>`}</tbody></table></div>
+      ${naoTipadas.length && E.genFiltro === "todos" ? `<div class="muted" style="font-size:12.5px;margin-top:8px">Não tipado em nenhum software (${naoTipadas.length}): ${naoTipadas.map(l => `<button class="gv-am" style="font-size:12px" data-abrir="${h(l.chave)}">${h(l.id)}</button>`).join(" ")}</div>` : ""}
+      <div class="gv-rodape">${nPendG ? `<span class="muted">${nPendG} pendente(s) em ${h(lc)}</span>` : `<span style="color:var(--good);font-weight:600">✓ ${h(lc)} sem pendências</span>`}
+        ${prox ? `<button class="btn ${nPendG ? "" : "primario"}" data-gene="${h(prox)}">Próximo gene: ${h(prox.replace("HLA-", ""))} →</button>` : `<button class="btn ${E.cons.linhas.some(pendente) ? "" : "primario"}" data-ir="exportar">Ir para Exportar →</button>`}</div>`;
+  }
+  function decidirRapido(l, fonte) {
+    if (fonte === "engine" && !l.opcoes.engine) return toast("NGSengine não tem tipagem para liberar neste locus.");
+    if (fonte === "engine" && l.semMac) return toast(`${l.id}: o código NMDP do NGSengine está incompleto (“?”). Abra os detalhes e use “Consultar API MAC”, ou libere o Assign.`);
+    if (fonte === "assign" && !l.opcoes.assign) return toast("Assign não tem tipagem para liberar neste locus.");
+    garantirAnalista(() => {
+      decidir(l, { fonte, obs: "" });
+      toast(`${l.id} · ${l.locus}: ${FONTES[fonte]}${fonte === "assign" && l.assignMac ? ` · ${l.assignMac.genotipos} genótipos → aguardando a API MAC` : ""}`);
+    });
+  }
+  function decidirLoteGene(acao) {
+    const ls = [...E.selGenes].map(k => E.porChave.get(k)).filter(Boolean);
+    if (!ls.length) return;
+    let ok = ls, pulados = [];
+    if (acao === "engine") { ok = ls.filter(l => l.opcoes.engine && !l.semMac); pulados = ls.filter(l => !ok.includes(l)); }
+    if (acao === "assign") { ok = ls.filter(l => l.opcoes.assign); pulados = ls.filter(l => !ok.includes(l)); }
+    const amb = acao === "assign" ? ok.filter(l => l.assignMac).length : 0;
+    const rot = { engine: "Liberar NGSengine", assign: "Liberar Assign", nt: "NT", limpar: "Voltar à sugestão automática" }[acao];
+    modal(`<h2>${h(rot)} em ${ok.length} amostra(s) de ${h(E.gene)}?</h2>
+      <p class="sec">Amostras: ${ok.map(l => h(l.id)).join(", ") || "—"}</p>
+      ${pulados.length ? `<p>${pulados.length} ficam como estão (${acao === "engine" ? "sem tipagem do NGSengine ou com “?” no código NMDP" : "sem tipagem do Assign"}): ${pulados.map(l => h(l.id)).join(", ")}</p>` : ""}
+      ${amb ? `<p>${amb} têm mais de um genótipo no Assign e ficam pendentes até obter o código NMDP.</p><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="mac-ja" checked> Consultar a API MAC para essas em seguida</label>` : ""}
+      ${acao === "limpar" ? "" : `<textarea class="obs" id="obs-lote" placeholder="Observação aplicada a todas (opcional)"></textarea>`}
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button class="btn" id="cancelar">Cancelar</button><button class="btn primario" id="confirmar" ${ok.length ? "" : "disabled"}>Confirmar</button></div>`, m => {
+      m.querySelector("#cancelar").onclick = fecharModal;
+      m.querySelector("#confirmar").onclick = () => garantirAnalista(() => {
+        const macJa = !!(m.querySelector("#mac-ja") && m.querySelector("#mac-ja").checked);
+        const obs = m.querySelector("#obs-lote") ? m.querySelector("#obs-lote").value : "";
+        for (const l of ok) decidir(l, acao === "limpar" ? null : { fonte: acao, obs: obs || `Decisão em lote (${E.gene})` }, true);
+        E.selGenes.clear(); fecharModal(); render();
+        toast(`${ok.length} amostra(s) de ${E.gene}: ${rot}${amb ? ` · ${amb} aguardando a API MAC` : ""}`);
+        if (macJa && amb) macEmLote();
+      });
+    });
+  }
+  function ligarGenes(app) {
+    app.querySelectorAll("[data-gene]").forEach(b => b.onclick = () => { E.gene = b.dataset.gene; E.selGenes.clear(); render(); window.scrollTo({ top: 0 }); });
+    app.querySelectorAll("[data-gf]").forEach(b => b.onclick = () => { E.genFiltro = b.dataset.gf; render(); });
+    app.querySelectorAll("[data-gv]").forEach(b => b.onclick = () => decidirRapido(E.porChave.get(b.dataset.chave), b.dataset.gv));
+    app.querySelectorAll("[data-abrir]").forEach(b => b.onclick = () => abrirPainel(b.dataset.abrir));
+    app.querySelectorAll("[data-sel]").forEach(c => c.onchange = () => { if (c.checked) E.selGenes.add(c.dataset.sel); else E.selGenes.delete(c.dataset.sel); render(); });
+    const visiveis = () => [...app.querySelectorAll("[data-sel]")].map(c => c.dataset.sel);
+    const todas = app.querySelector("#gv-todas");
+    if (todas) { const v = visiveis(); todas.checked = v.length > 0 && v.every(k => E.selGenes.has(k)); todas.onchange = () => { visiveis().forEach(k => (todas.checked ? E.selGenes.add(k) : E.selGenes.delete(k))); render(); }; }
+    app.querySelectorAll("[data-gsel]").forEach(b => b.onclick = () => {
+      if (b.dataset.gsel === "nenhuma") E.selGenes.clear();
+      else if (b.dataset.gsel === "visiveis") visiveis().forEach(k => E.selGenes.add(k));
+      else visiveis().forEach(k => { if (pendente(E.porChave.get(k))) E.selGenes.add(k); });
+      render();
+    });
+    app.querySelectorAll("[data-glote]").forEach(b => b.onclick = () => decidirLoteGene(b.dataset.glote));
   }
 
   // ================================================================ painel de decisão
@@ -2868,32 +3070,96 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
     const qcR = l.qcNivel === "erro" && l.comp.status === "identico" && !rej;
     return [l.locus, l.comp.status, rej ? "rej" : "ok", qcR ? "qc" : ""].join("|");
   }
+  // locos rejeitados (não aprovados) no NGSengine que têm tipagem: revisados numa seção própria
+  const ehRej = l => !!(l.engine && l.engine.status !== "Approved" && (l.engine.glConclusiva || l.engine.glResultado || l.engine.nmdp1));
+  function estadoRej(l) {
+    const d = E.decisoes[l.chave];
+    if (aguardaMac(l)) return { cls: "pend", txt: "Assign · aguardando código NMDP (API MAC)" };
+    if (d && d.fonte === "mac") return { cls: "ok", txt: `API MAC (${d.origem === "assign" ? "Assign" : "NGSengine"}): ${d.alelo1} + ${d.alelo2}` };
+    if (d && d.fonte === "assign") return { cls: "assign", txt: `Assign: ${(l.opcoes.assign || []).filter(Boolean).join(" + ")}${d.semCodigo ? " (sem código NMDP)" : ""}` };
+    if (d && d.fonte === "manual") return { cls: "manual", txt: `Manual: ${d.alelo1} + ${d.alelo2}` };
+    if (d && d.fonte === "engine") return { cls: "ok", txt: "NGSengine (liberado pelo analista)" };
+    const ef = efetiva(l);
+    if (ef && (ef.fonte === "nt" || ef.fonte === "nao_liberar")) return { cls: "nao", txt: ef.automatica ? "NT (automático)" : "NT (analista)" };
+    return { cls: "pend", txt: "pendente" };
+  }
+  function linhaRev(l, extra) {
+    return `<div class="linha-rev" data-chave="${h(l.chave)}"><b>${h(l.id)}</b>
+      <div>${extra || ""}<div class="lbl">NGSengine</div><div class="gl" title="${h(l.engine ? l.engine.glConclusiva : "")}">${h(l.engine ? l.engine.glConclusiva || l.engine.glResultado || "—" : "—")}</div>
+      ${modoEngine() ? "" : `<div class="lbl">Assign${l.assignMac ? ` · ${l.assignMac.genotipos} genótipos (precisa de código NMDP)` : ""}</div><div class="gl" title="${h(l.assign ? l.assign.gl : "")}">${h(l.assign ? l.assign.gl || "—" : "—")}</div>`}</div></div>`;
+  }
   function renderRevisao() {
-    const pend = E.cons.linhas.filter(pendente);
-    if (!pend.length) {
-      const nd = Object.keys(E.decisoes).length;
-      return `<div class="vazio-ok"><div class="grande">✓</div><h2>Nenhuma pendência</h2><p class="sec">${nd} tipagem(ns) decidida(s) pelo analista. Confira a aba <b>Exportar</b> para gerar os arquivos.</p>
-        <button class="btn primario" data-ir="exportar">Ir para Exportar →</button></div>`;
-    }
-    const grupos = new Map();
-    for (const l of pend) { const g = grupoDe(l); if (!grupos.has(g)) grupos.set(g, []); grupos.get(g).push(l); }
-    const ordenados = [...grupos.entries()].sort((a, b) => b[1].length - a[1].length);
+    const pend = E.cons.linhas.filter(l => pendente(l) && !ehRej(l));
+    const rejs = E.cons.linhas.filter(ehRej);
     const nMac = pendentesMac().length;
-    return `${nMac ? `<div class="aviso-mac"><span><b>${nMac}</b> tipagem(ns) sem código NMDP (“?” no NGSengine ou Assign ambíguo escolhido) aguardando a API MAC.</span><button class="btn primario pequeno" data-mac-lote>Consultar todas na API MAC</button></div>` : ""}
-      <p class="sec" style="margin-top:0">As pendências estão agrupadas por locus e tipo de situação. Dá para decidir um grupo inteiro de uma vez (cada tipagem fica registrada com o seu nome) ou abrir uma por uma.</p>
+    const topo = nMac ? `<div class="aviso-mac"><span><b>${nMac}</b> tipagem(ns) sem código NMDP (“?” no NGSengine ou Assign ambíguo escolhido) aguardando a API MAC.</span><button class="btn primario pequeno" data-mac-lote>Consultar todas na API MAC</button></div>` : "";
+    let corpo;
+    if (!pend.length) {
+      const nd = Object.keys(E.decisoes).length, pr = rejs.filter(pendente).length;
+      corpo = `<div class="vazio-ok" style="${rejs.length ? "padding:18px 0 8px" : ""}"><div class="grande">✓</div><h2>${pr ? "Nenhuma outra pendência" : "Nenhuma pendência"}</h2><p class="sec">${nd} tipagem(ns) decidida(s) pelo analista.${pr ? ` Faltam ${pr} locos rejeitados no NGSengine (abaixo).` : " Confira a aba <b>Exportar</b> para gerar os arquivos."}</p>
+        ${pr ? "" : `<button class="btn primario" data-ir="exportar">Ir para Exportar →</button>`}</div>`;
+    } else {
+      const grupos = new Map();
+      for (const l of pend) { const g = grupoDe(l); if (!grupos.has(g)) grupos.set(g, []); grupos.get(g).push(l); }
+      const ordenados = [...grupos.entries()].sort((a, b) => b[1].length - a[1].length);
+      corpo = `<p class="sec" style="margin-top:0">As pendências estão agrupadas por locus e tipo de situação. Dá para decidir um grupo inteiro de uma vez (cada tipagem fica registrada com o seu nome) ou abrir uma por uma.</p>
       <div class="grupos">${ordenados.map(([g, ls]) => {
-        const [locus, st, rej, qc] = g.split("|");
+        const [locus, st, , qc] = g.split("|");
         const temE = ls.every(l => l.opcoes.engine), temA = ls.every(l => l.opcoes.assign);
-        const desc = [HLA.STATUS[st].rotulo, rej === "rej" ? "não aprovado no NGSengine" : "", qc ? "com alerta vermelho de QC" : ""].filter(Boolean).join(" · ");
+        const desc = [HLA.STATUS[st].rotulo, qc ? "com alerta vermelho de QC" : ""].filter(Boolean).join(" · ");
         return `<section class="grupo"><header><span class="badge st-${st}">${ICONE[st]} ${ls.length}</span>
           <div class="tit"><b>${h(locus)} · ${h(desc)}</b><span>${h(ls[0].sugestao.motivo)}</span></div>
           <button class="btn pequeno" data-lote="engine" data-grupo="${h(g)}" ${temE ? "" : "disabled"}>Liberar NGSengine (${ls.length})</button>
           ${modoEngine() ? "" : `<button class="btn pequeno" data-lote="assign" data-grupo="${h(g)}" ${temA ? "" : "disabled"}>Liberar Assign (${ls.length})</button>`}
           <button class="btn pequeno" data-lote="nt" data-grupo="${h(g)}">NT (${ls.length})</button></header>
-          <div class="linhas">${ls.map(l => `<div class="linha-rev" data-chave="${h(l.chave)}"><b>${h(l.id)}</b>
-            <div><div class="lbl">NGSengine</div><div class="gl" title="${h(l.engine ? l.engine.glConclusiva : "")}">${h(l.engine ? l.engine.glConclusiva || "—" : "—")}</div>
-            <div class="lbl">Assign</div><div class="gl" title="${h(l.assign ? l.assign.gl : "")}">${h(l.assign ? l.assign.gl || "—" : "—")}</div></div></div>`).join("")}</div></section>`;
+          <div class="linhas">${ls.map(l => linhaRev(l)).join("")}</div></section>`;
       }).join("")}</div>`;
+    }
+    return topo + corpo + renderRejeitados(rejs);
+  }
+  function renderRejeitados(rejs) {
+    if (!rejs.length) return "";
+    const grupos = new Map();
+    for (const l of rejs) { const g = l.locus + "|" + l.comp.status; if (!grupos.has(g)) grupos.set(g, []); grupos.get(g).push(l); }
+    const ord = [...grupos.entries()].sort((a, b) => b[1].length - a[1].length);
+    return `<h2 style="margin:26px 0 4px;font-size:17px">⛔ Rejeitados no NGSengine <span class="muted" style="font-weight:400;font-size:14px">· ${rejs.length} locos</span></h2>
+      <p class="sec" style="margin-top:0">Saem como NT, a menos que você libere outra tipagem. Agrupados por locus e pela comparação com o Assign. Ao liberar o Assign, as tipagens com mais de um genótipo vão para a lista da API MAC para obter o código NMDP.</p>
+      <div class="grupos">${ord.map(([g, ls]) => {
+        const [locus, st] = g.split("|");
+        const comA = ls.filter(l => l.opcoes.assign), amb = comA.filter(l => l.assignMac).length;
+        const nt = ls.filter(l => estadoRej(l).cls === "nao").length;
+        return `<section class="grupo"><header><span class="badge st-${st}">${ICONE[st]} ${ls.length}</span>
+          <div class="tit"><b>${h(locus)} · rejeitado no NGSengine · ${h(HLA.STATUS[st].rotulo)}</b><span>${nt} como NT${comA.length ? ` · ${comA.length} com tipagem do Assign${amb ? ` (${amb} precisam de código NMDP)` : ""}` : ""}</span></div>
+          ${modoEngine() ? "" : `<button class="btn pequeno" data-rej-lote="assign" data-grupo="${h(g)}" ${comA.length ? "" : "disabled"}>Liberar Assign (${comA.length})</button>`}
+          <button class="btn pequeno" data-rej-lote="nt" data-grupo="${h(g)}">Voltar para NT (${ls.length})</button></header>
+          <div class="linhas">${ls.map(l => { const e = estadoRej(l); return linhaRev(l, `<div class="lbl">Liberação</div><div><span class="dec ${e.cls}" style="position:static;display:inline-block;margin-right:6px">${e.cls === "pend" ? "!" : e.cls === "nao" ? "NT" : e.cls === "assign" ? "A" : e.cls === "manual" ? "M" : "✓"}</span>${h(e.txt)}</div>`); }).join("")}</div></section>`;
+      }).join("")}</div>`;
+  }
+  function decidirLoteRej(acao, g) {
+    const todos = E.cons.linhas.filter(l => ehRej(l) && l.locus + "|" + l.comp.status === g);
+    const ls = acao === "assign" ? todos.filter(l => l.opcoes.assign) : todos;
+    if (!ls.length) return;
+    const amb = acao === "assign" ? ls.filter(l => l.assignMac).length : 0;
+    const [locus, st] = g.split("|");
+    modal(`<h2>${acao === "assign" ? `Liberar o Assign em ${ls.length} locos rejeitados?` : `Voltar ${ls.length} locos para NT?`}</h2>
+      <p>${h(locus)} · rejeitado no NGSengine · ${h(HLA.STATUS[st].rotulo)}</p>
+      <p class="sec">Amostras: ${ls.map(l => h(l.id)).join(", ")}</p>
+      ${amb ? `<p>${amb} delas têm mais de um genótipo no Assign e ficam pendentes até obter o código NMDP.</p><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="mac-ja" checked> Consultar a API MAC para essas em seguida</label>` : ""}
+      ${acao === "assign" ? `<textarea class="obs" id="obs-lote" placeholder="Observação aplicada a todas (opcional)"></textarea>` : `<p class="sec">As decisões do analista nesses locos (Assign, API MAC, manual) serão desfeitas.</p>`}
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px"><button class="btn" id="cancelar">Cancelar</button><button class="btn primario" id="confirmar">Confirmar</button></div>`, m => {
+      m.querySelector("#cancelar").onclick = fecharModal;
+      m.querySelector("#confirmar").onclick = () => garantirAnalista(() => {
+        const macJa = !!(m.querySelector("#mac-ja") && m.querySelector("#mac-ja").checked);
+        const obs = m.querySelector("#obs-lote") ? m.querySelector("#obs-lote").value : "";
+        for (const l of ls) {
+          if (acao === "assign") decidir(l, { fonte: "assign", obs: obs || "Rejeitado no NGSengine: liberado o Assign (decisão em lote)" }, true);
+          else decidir(l, l.sugestao.automatica && l.sugestao.fonte === "nt" ? null : { fonte: "nt", obs: "Rejeitado no NGSengine: NT (decisão em lote)" }, true);
+        }
+        fecharModal(); render();
+        toast(acao === "assign" ? `${ls.length} loco(s): Assign${amb ? ` · ${amb} aguardando a API MAC` : ""}` : `${ls.length} loco(s): NT`);
+        if (macJa && amb) macEmLote();
+      });
+    });
   }
   function decidirLote(fonte, g) {
     const ls = E.cons.linhas.filter(l => pendente(l) && grupoDe(l) === g);
@@ -3387,6 +3653,8 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
     const busca = app.querySelector("#busca");
     if (busca) busca.oninput = () => { E.busca = busca.value; const pos = busca.selectionStart; render(); const nb = $("#busca"); nb.focus(); nb.setSelectionRange(pos, pos); };
     app.querySelectorAll("[data-mac-lote]").forEach(b => b.onclick = macEmLote);
+    if (E.aba === "genes") ligarGenes(app);
+    app.querySelectorAll("[data-rej-lote]").forEach(b => b.onclick = () => decidirLoteRej(b.dataset.rejLote, b.dataset.grupo));
     app.querySelectorAll("[data-lote]").forEach(b => b.onclick = () => decidirLote(b.dataset.lote, b.dataset.grupo));
     app.querySelectorAll("[data-lim]").forEach(i => i.onchange = () => {
       const v = parseFloat(i.value); if (!Number.isFinite(v)) return;
@@ -3459,6 +3727,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
     if (k === "?") return mostrarAtalhos();
     if (k === "escape") return fecharPainel();
     if (k === "p") return navegar(1, true);
+    if ((k === "[" || k === "]") && E.aba === "genes") { const g = genesPresentes(), i = g.indexOf(E.gene) + (k === "]" ? 1 : -1); if (g[i]) { E.gene = g[i]; E.selGenes.clear(); render(); } return; }
     if (!E.aberto) { if (k === "j" || k === "arrowdown") { ev.preventDefault(); navegar(1, true); } return; }
     const lin = E.porChave.get(E.aberto);
     if (k === "j" || k === "arrowdown") { ev.preventDefault(); return navegar(1); }
