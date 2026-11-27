@@ -186,7 +186,7 @@ table.placa tr:hover td.amostra { background: var(--surface-2); }
 .qcdot.novo { background: var(--accent); border-radius: 2px; transform: rotate(45deg); width: 7px; height: 7px; }
 
 /* ---------------------------------------------------------------- painel lateral */
-.painel { position: fixed; top: 0; right: 0; bottom: 0; width: min(760px, 96vw); background: var(--surface-1); border-left: 1px solid var(--border); box-shadow: -10px 0 40px rgba(0,0,0,.15); z-index: 40; display: flex; flex-direction: column; transform: translateX(100%); transition: transform .18s ease-out; }
+.painel { position: fixed; top: var(--topo-h, 0px); right: 0; bottom: 0; width: min(var(--painel-w, 560px), 96vw); background: var(--surface-1); border-left: 1px solid var(--border); box-shadow: -10px 0 40px rgba(0,0,0,.15); z-index: 40; display: flex; flex-direction: column; transform: translateX(100%); transition: transform .18s ease-out; }
 .painel:not(.aberto) { visibility: hidden; transition: transform .18s ease-out, visibility 0s .18s; }
 .painel.aberto { transform: none; }
 .painel header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; gap: 12px; align-items: center; }
@@ -225,7 +225,8 @@ table.placa tr:hover td.amostra { background: var(--surface-2); }
 .alertas li .ic { font-weight: 700; width: 16px; text-align: center; }
 .alertas li.erro { background: var(--critical-soft); }
 .alertas li.aviso { background: var(--warning-soft); }
-.decisao { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.decisao { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+.decisao .opcao { min-width: 0; } .decisao .opcao .t2 { overflow-wrap: anywhere; }
 .opcao { border: 1.5px solid var(--border); border-radius: 10px; padding: 8px 10px; background: var(--surface-1); cursor: pointer; text-align: left; display: flex; flex-direction: column; gap: 2px; min-height: 64px; }
 .opcao:hover { border-color: var(--text-muted); }
 .opcao[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); background: var(--accent-soft); }
@@ -390,12 +391,13 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
 .gv-aba .ok-g { font-size: 12px; color: var(--good); } .gv-aba[aria-pressed="true"] .ok-g { color: #fff; }
 .gv-barra { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
 .gv-lote { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-1); margin-bottom: 8px; font-size: 13px; }
-.gv-lote.ativo { border-color: var(--accent); background: var(--accent-soft); position: sticky; top: 0; z-index: 3; }
+.gv-lote.ativo { border-color: var(--accent); background: var(--accent-soft); position: sticky; top: 0; z-index: 3; margin-bottom: 0; border-radius: var(--radius) var(--radius) 0 0; }
 .gv-lote .sep { width: 1px; align-self: stretch; background: var(--border); margin: 0 4px; }
 .btn.pequeno.primario { color: #fff; }
-.gv-wrap { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); overflow: auto; }
+.gv-wrap { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); }   /* sem overflow: o cabeçalho trava em relação à página */
 table.gv { width: 100%; border-collapse: collapse; font-size: 13px; }
-table.gv th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--text-muted); font-weight: 600; padding: 8px 8px; border-bottom: 1px solid var(--border); background: var(--surface-2); position: sticky; top: 0; z-index: 1; }
+table.gv th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--text-muted); font-weight: 600; padding: 8px 8px; border-bottom: 1px solid var(--border); background: var(--surface-2); position: sticky; top: var(--gv-lote-h, 0px); z-index: 2; box-shadow: 0 1px 0 var(--border); }
+table.gv thead th:first-child { border-top-left-radius: var(--radius); } table.gv thead th:last-child { border-top-right-radius: var(--radius); }
 table.gv td { padding: 5px 8px; border-bottom: 1px solid var(--surface-2); vertical-align: middle; }
 table.gv tr.pend td { background: color-mix(in srgb, var(--critical) 4%, transparent); }
 table.gv tr.sel td { background: var(--accent-soft); }
@@ -419,6 +421,21 @@ table.gv td.fl { min-width: 180px; }
 .gv-chip.aviso { background: var(--warning-soft); border-color: var(--warning); }
 .gv-chip.info { background: var(--surface-2); color: var(--text-secondary); }
 .gv-rodape { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; }
+
+/* painel lateral ao lado do conteúdo (não cobre) */
+.painel-alca { position: absolute; left: -4px; top: 0; bottom: 0; width: 8px; cursor: col-resize; z-index: 2; }
+.painel-alca:hover, body.arrastando .painel-alca { background: var(--accent); opacity: .35; }
+body.arrastando { cursor: col-resize; user-select: none; }
+body.arrastando .painel { transition: none; }
+@media (min-width: 1000px) {
+  body.painel-aberto #main { margin-right: min(var(--painel-w, 560px), 96vw); }
+  body.painel-aberto .painel { box-shadow: none; }
+}
+#main { transition: margin-right .18s ease-out; }
+.gv-nt { font: 700 11px var(--sans); padding: 5px 7px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-muted); cursor: pointer; }
+.gv-nt:hover { border-color: var(--critical); color: var(--critical); }
+.gv-nt.escolhido { background: var(--critical-soft); border: 2px solid var(--critical); color: var(--critical); padding: 4px 6px; }
+table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: center; }
 
 </style>
 <style>
@@ -2073,7 +2090,7 @@ table.gv td.fl { min-width: 180px; }
     return txt;
   }
 
-  const VERSAO = "2026.11.27-2";   // atualize a cada versão publicada (aparece no app, no relatório e no gabarito)
+  const VERSAO = "2026.11.27-4";   // atualize a cada versão publicada (aparece no app, no relatório e no gabarito)
   const api = {
     VERSAO, codificarMac,
     LOCOS, STATUS, LIMITES_PADRAO, enxugarXml, parseXml, lerEngine, lerAssign, reduzirCampos, tresCampos,
