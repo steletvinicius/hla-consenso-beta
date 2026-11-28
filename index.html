@@ -396,7 +396,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
 .btn.pequeno.primario { color: #fff; }
 .gv-wrap { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); }   /* sem overflow: o cabeçalho trava em relação à página */
 table.gv { width: 100%; border-collapse: collapse; font-size: 13px; }
-table.gv th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--text-muted); font-weight: 600; padding: 8px 8px; border-bottom: 1px solid var(--border); background: var(--surface-2); position: sticky; top: var(--gv-lote-h, 0px); z-index: 2; box-shadow: 0 1px 0 var(--border); }
+table.gv th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--surface-1); font-weight: 700; padding: 9px 8px; border-bottom: 1px solid var(--text-primary); background: var(--text-primary); position: sticky; top: var(--gv-lote-h, 0px); z-index: 2; box-shadow: 0 1px 0 var(--border); }
 table.gv thead th:first-child { border-top-left-radius: var(--radius); } table.gv thead th:last-child { border-top-right-radius: var(--radius); }
 table.gv td { padding: 5px 8px; border-bottom: 1px solid var(--surface-2); vertical-align: middle; }
 table.gv tr.pend td { background: color-mix(in srgb, var(--critical) 4%, transparent); }
@@ -436,6 +436,19 @@ body.arrastando .painel { transition: none; }
 .gv-nt:hover { border-color: var(--critical); color: var(--critical); }
 .gv-nt.escolhido { background: var(--critical-soft); border: 2px solid var(--critical); color: var(--critical); padding: 4px 6px; }
 table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: center; }
+table.gv tr.vazia td { color: var(--text-muted); }
+
+.gv-chip.ld { background: var(--side-soft); border-color: var(--side); border-style: dashed; color: var(--text-secondary); }
+.protocolo { display: flex; flex-direction: column; gap: 4px; margin: 14px 0 4px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-1); font-size: 13.5px; }
+.protocolo label { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+.abas .etapa { display: inline-grid; place-items: center; width: 17px; height: 17px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 10.5px; font-weight: 700; margin-right: 6px; }
+.abas-sep { width: 1px; align-self: stretch; background: var(--border); margin: 4px 4px; }
+.ld-conf { margin-top: 4px; font-size: 12px; } .ld-conf.ok { color: var(--good); } .ld-conf a { color: var(--text-muted); margin-left: 6px; }
+/* abas numa linha própria, abaixo do cabeçalho: sobra espaço para os dados da corrida */
+.topo { flex-wrap: wrap; row-gap: 8px; }
+.topo .abas { order: 10; flex-basis: 100%; width: 100%; justify-content: flex-start; }
+.topo .projeto .chips { flex-wrap: wrap; }
+.chip { white-space: nowrap; }
 
 </style>
 </head>
@@ -447,13 +460,14 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
   </div>
   <div class="projeto" id="projeto"></div>
   <nav class="abas hidden" id="abas" role="tablist">
-    <button role="tab" data-aba="genes" aria-selected="true">Por gene</button>
+    <button role="tab" data-aba="genes" aria-selected="true"><span class="etapa">1</span>Por gene</button>
+    <button role="tab" data-aba="hemi"><span class="etapa">2</span>DRB3/4/5 <span class="cont" id="cont-hemi">0</span></button>
+    <button role="tab" data-aba="ld"><span class="etapa">3</span>Ligação <span class="cont" id="cont-ld">0</span></button>
+    <button role="tab" data-aba="exportar"><span class="etapa">4</span>Exportar</button>
+    <span class="abas-sep"></span>
     <button role="tab" data-aba="placa">Placa</button>
     <button role="tab" data-aba="revisao">Revisão <span class="cont" id="cont-pend">0</span></button>
-    <button role="tab" data-aba="hemi">DRB3/4/5 <span class="cont" id="cont-hemi">0</span></button>
-    <button role="tab" data-aba="ld">Ligação</button>
     <button role="tab" data-aba="qualidade">Qualidade</button>
-    <button role="tab" data-aba="exportar">Exportar</button>
   </nav>
   <button class="icone-btn" id="bt-atalhos" title="Atalhos de teclado (?)">⌨</button>
   <button class="icone-btn" id="bt-tema" title="Tema claro/escuro">Tema</button>
@@ -475,6 +489,12 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
       <div class="slot vazio" id="slot-dmr"><h3>Lista do REDOME (opcional)</h3><div class="arq">Patient;DMR;ORIGEM;NOME</div></div>
     </div>
     <div class="privacidade">🔒 <div>Tudo é processado <b>no seu navegador</b>. Nenhum arquivo ou resultado é enviado para a internet. As decisões ficam salvas neste computador (por corrida) e podem ser exportadas.</div></div>
+    <div class="protocolo" role="radiogroup" aria-label="Protocolo da corrida">
+      <b>Protocolo da corrida</b>
+      <label><input type="radio" name="protocolo" value="captura"> Captura híbrida <span class="muted">— estimar o número de cópias (dosagem gênica)</span></label>
+      <label><input type="radio" name="protocolo" value="pcr"> PCR / amplicon <span class="muted">— não estimar (os reads não refletem as cópias)</span></label>
+      <span class="muted" style="font-size:12px">A duplicação de DRB3/4/5 é removida nos dois casos (pelo DRB1).</span>
+    </div>
     <div class="acoes-inicio">
       <button class="btn primario" id="bt-analisar" disabled>Analisar corrida →</button>
       <span class="muted" id="dica-inicio">Falta o export do NGSengine.</span>
@@ -1638,6 +1658,30 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
     return [{ nivel: "info", metrica: "ld", texto: `LD ${x.par}: haplótipos esperados — ${hs}` }];
   }
 
+  /** Alelo nulo (sufixo N) na tipagem que seria liberada (aviso) ou só entre as alternativas (informativo). */
+  function alertasNulos(lin) {
+    const nulo = a => /\*[\d:]+N$/.test(String(a || ""));
+    const naTipagem = [...(lin.opcoes.engine || []), ...(lin.opcoes.assign || [])].filter(nulo);
+    if (naTipagem.length) return [{ nivel: "aviso", metrica: "nulo", texto: `Alelo nulo na tipagem: ${[...new Set(naTipagem)].join(", ")}` }];
+    const alt = [...(lin.comp.paresEngine || []), ...(lin.comp.paresAssign || [])].join("+").split("+").filter(nulo);
+    const glE = lin.engine ? String(lin.engine.glConclusiva || "").split(/[|+/]/).filter(nulo) : [];
+    const todos = [...new Set([...alt, ...glE])];
+    return todos.length ? [{ nivel: "info", metrica: "nulo", texto: `Alelo nulo entre os genótipos possíveis: ${todos.slice(0, 4).join(", ")}${todos.length > 4 ? "…" : ""}` }] : [];
+  }
+  /** Alelo raro: pouco observado na referência local (legado de doadores; só os locos da referência de LD). */
+  function alertasRaros(lin, cfg, L) {
+    if (!cfg || typeof cfg.contarAlelo !== "function") return [];
+    const op = lin.engine && lin.engine.status === "Approved" && lin.opcoes.engine ? lin.opcoes.engine : lin.opcoes.assign || lin.opcoes.engine;
+    if (!op) return [];
+    const out = [];
+    for (const a of [...new Set(op.filter(Boolean))]) {
+      const r = cfg.contarAlelo(lin.locus, a);
+      if (!r) continue;   // locus fora da referência ou código MAC
+      if (r.n < 0.5) out.push({ nivel: "aviso", metrica: "raro", texto: `Alelo sem registro na referência local: ${r.alelo} (0 de ${r.total} cromossomos)` });
+      else if (r.n < L.ldLimiteRaro) out.push({ nivel: "aviso", metrica: "raro", texto: `Alelo raro na referência local: ${r.alelo} (≈${r.n.toFixed(1)} de ${r.total} cromossomos)` });
+    }
+    return out;
+  }
   const HEMI_LOCOS = ["HLA-DRB3", "HLA-DRB4", "HLA-DRB5"];
   function alertasDosagem(lin, L) {
     const d = lin.dosagem, out = [];
@@ -1753,10 +1797,15 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
       if (e && !aprov && temTipagemEngine) m = `Locus ${e.status === "Rejected" ? "rejeitado" : "não aprovado"} no NGSengine` + (m ? " · " + m : "");
       return { fonte: null, automatica: false, motivo: m || "Revisar" };
     }
-    const dosagemRef = calcularDosagem(linhas, L, cfg);
+    // dosagem só para captura híbrida (cfg.dosagem === false: corrida de PCR/amplicon, sem estimativa de cópias)
+    const usarDosagem = !(cfg && cfg.dosagem === false);
+    const dosagemRef = usarDosagem ? calcularDosagem(linhas, L, cfg) : null;
+    if (!usarDosagem) for (const l of linhas) l.dosagem = null;
     if (cfg && typeof cfg.checarLD === "function") aplicarLD(linhas, cfg.checarLD);
     for (const lin of linhas) {
-      lin.qc = avaliarQC(lin.engine, lin.assign, L).concat(alertasDosagem(lin, L), alertasLD(lin, cfg));
+      // LD é uma revisão à parte (combina 2 genes): fica em lin.ldAlertas, só informativo, e não entra no QC
+      lin.ldAlertas = alertasLD(lin, cfg);
+      lin.qc = avaliarQC(lin.engine, lin.assign, L).concat(alertasDosagem(lin, L), alertasNulos(lin), alertasRaros(lin, cfg, L));
       lin.qcNivel = pior(lin.qc);
       lin.sugestao = sugerir(lin);
       if (modoEngine && lin.comp.status === "aprovado" && !lin.sugestao.automatica) lin.comp.status = "revisar";
@@ -2063,7 +2112,7 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
     return txt;
   }
 
-  const VERSAO = "2026.11.27-4";   // atualize a cada versão publicada (aparece no app, no relatório e no gabarito)
+  const VERSAO = "2026.11.27-7";   // atualize a cada versão publicada (aparece no app, no relatório e no gabarito)
   const api = {
     VERSAO, codificarMac,
     LOCOS, STATUS, LIMITES_PADRAO, enxugarXml, parseXml, lerEngine, lerAssign, reduzirCampos, tresCampos,
@@ -2250,8 +2299,8 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
   const E = {
     arquivos: { engine: null, assigns: [], dmr: null },
     engine: null, assigns: [], dmr: null, cons: null,
-    decisoes: {}, hemi: {}, desfazer: [],
-    cfg: { versaoCfg: 2, limites: {}, ignorarNulos: false, revisarAlertaVermelho: true, rejeitadoNT: true, excluir: "1044736", avancar: true, refClasseI: "auto", refClasseII: "auto" },
+    decisoes: {}, hemi: {}, ldConf: {}, desfazer: [],
+    cfg: { versaoCfg: 2, limites: {}, ignorarNulos: false, revisarAlertaVermelho: true, rejeitadoNT: true, excluir: "1044736", avancar: true, refClasseI: "auto", refClasseII: "auto", dosagem: true },
     aba: "genes", gene: null, genFiltro: "todos", selGenes: new Set(), filtro: "todos", busca: "", aberto: null,
     analista: localStorage.getItem("hlaConsenso:analista") || "",
     refLD: null, ldSoIncomuns: false, listaDmr: null, nomeListaDmr: "",
@@ -2303,7 +2352,7 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
     if (!E.cons) return;
     try {
       localStorage.setItem(CHAVE_LS + E.cons.projeto, JSON.stringify({
-        decisoes: E.decisoes, hemi: E.hemi, cfg: E.cfg, atualizado: new Date().toISOString(), analista: E.analista, arquivo: E.arquivos.engine ? E.arquivos.engine.nome : "",
+        decisoes: E.decisoes, hemi: E.hemi, ldConf: E.ldConf, cfg: E.cfg, atualizado: new Date().toISOString(), analista: E.analista, arquivo: E.arquivos.engine ? E.arquivos.engine.nome : "",
       }));
     } catch (e) { console.warn(e); }
   }
@@ -2320,7 +2369,7 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
   function apagarSessao(projeto) { localStorage.removeItem(CHAVE_LS + projeto); }
   function recomecar() {   // esquece tudo desta corrida: decisões, DRB3/4/5, configuração e o "desfazer"
     apagarSessao(E.cons.projeto);
-    E.decisoes = {}; E.hemi = {}; E.desfazer = []; E.cfg = JSON.parse(CFG_INICIAL);
+    E.decisoes = {}; E.hemi = {}; E.ldConf = {}; E.desfazer = []; E.cfg = JSON.parse(CFG_INICIAL); E.cfg.dosagem = protocoloInicial() === "captura";
     recalcular(); render(); toast("Corrida reiniciada do zero: só as sugestões automáticas.");
   }
   function desenharSessoes() {
@@ -2406,7 +2455,7 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
       E.assigns = [];
       for (const a of E.arquivos.assigns) E.assigns.push(HLA.lerAssign(await Arquivos.lerXlsx(a.buffer), a.nome));
       let salvo = lerSalvo(E.engine.projeto);
-      E.decisoes = {}; E.hemi = {}; E.desfazer = []; E.cfg = JSON.parse(CFG_INICIAL);
+      E.decisoes = {}; E.hemi = {}; E.ldConf = {}; E.desfazer = []; E.cfg = JSON.parse(CFG_INICIAL);
       if (salvo) {
         carregando(null);
         if ((await perguntarRetomar(salvo)) === "zero") { apagarSessao(E.engine.projeto); salvo = null; }
@@ -2415,10 +2464,12 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
       if (salvo) {
         E.decisoes = salvo.decisoes || {};
         E.hemi = salvo.hemi || {};
+        E.ldConf = salvo.ldConf || {};
         Object.assign(E.cfg, salvo.cfg || {});
         if (!salvo.cfg || salvo.cfg.versaoCfg !== 2) { E.cfg.ignorarNulos = false; E.cfg.versaoCfg = 2; }   // sessões antigas: mostrar divergências brutas
         if (Object.keys(E.decisoes).length) setTimeout(() => toast(`Retomando a sessão salva: ${Object.keys(E.decisoes).length} decisão(ões) do analista.`), 300);
       }
+      E.cfg.dosagem = protocoloInicial() === "captura";   // escolha da tela inicial vale para esta abertura
       recalcular();
       $("#tela-inicio").classList.add("hidden");
       $("#tela-app").classList.remove("hidden");
@@ -2431,9 +2482,22 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
     } finally { carregando(null); }
   }
 
+  /** Frequência de um alelo na referência local (legado de doadores) — só os locos da referência de LD. */
+  function contarAleloRef(lc, alelo) {
+    const P = Object.values(E.refLD.pares).find(p => p.locos.includes(lc));
+    if (!P) return null;
+    const n = LD.normalizar(lc, alelo);
+    if (!n || n.mac) return null;
+    const total = 2 * P.n, f = (P.alelos[lc] || {})[n.alelo] || 0;
+    return { alelo: n.alelo, n: f * total, total };
+  }
+  function protocoloInicial() {
+    const r = document.querySelector('input[name="protocolo"]:checked');
+    return r ? r.value : (localStorage.getItem("hlaConsenso:protocolo") || "captura");
+  }
   function recalcular() {
     const lim = Object.assign({}, HLA.LIMITES_PADRAO, E.cfg.limites || {});
-    const cfg = Object.assign({}, E.cfg, E.refLD ? { checarLD: g => LD.checar(E.refLD, g, lim.ldLimiteRaro) } : {});
+    const cfg = Object.assign({}, E.cfg, E.refLD ? { checarLD: g => LD.checar(E.refLD, g, lim.ldLimiteRaro), contarAlelo: contarAleloRef } : {});
     E.cons = HLA.consolidar(E.engine, E.assigns, cfg);
     E.porChave = new Map(E.cons.linhas.map(l => [l.chave, l]));
   }
@@ -2524,6 +2588,7 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
       <span class="chip ${E.refLD ? "" : "alerta"}">${E.refLD ? `LD: referência de ${Math.max(...Object.values(E.refLD.pares).map(p => p.n))} doadores` : "LD: sem referência"}</span></div>`;
     const nh = HLA.analisarHemizigose(E.cons, E.decisoes).reduce((n, a) => n + HLA.HEMI.filter(lc => a.locos[lc].conflito && E.hemi[a.chave + "|" + lc] === undefined).length, 0);
     const ch = $("#cont-hemi"); if (ch) { ch.textContent = nh; ch.classList.toggle("zero", nh === 0); }
+    const cl = $("#cont-ld"); if (cl) { const n = E.refLD ? pendenciasLD().length : 0; cl.textContent = n; cl.classList.toggle("zero", n === 0); }
     const np = E.cons.linhas.filter(pendente).length;
     const c = $("#cont-pend");
     c.textContent = np; c.classList.toggle("zero", np === 0);
@@ -2649,7 +2714,7 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
     novo: "Alelo novo?", avisoEngine: "Aviso NGSengine", q30: "Q30", cobertura: "Cobertura", balanco: "Balanço", dosagem: "Dosagem", ld: "LD" };
   function genesPresentes() { return E.cons.locos.filter(lc => E.cons.linhas.some(l => l.locus === lc && (l.engine || l.assign))); }
   function linhasDoGene(lc) { return E.cons.linhas.filter(l => l.locus === lc).sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true })); }
-  const temAlerta = l => l.qcNivel === "erro" || l.qcNivel === "aviso" || l.semMac || !!l.assignMac && aguardaMac(l);
+  const temAlerta = l => l.qcNivel === "erro" || l.qcNivel === "aviso" || l.semMac || (!!l.assignMac && aguardaMac(l)) || (l.ldAlertas || []).some(x => x.nivel !== "info");
   function filtrarGene(ls) {
     const f = E.genFiltro;
     if (f === "pendentes") return ls.filter(pendente);
@@ -2666,11 +2731,13 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
     if (l.assignMac) chip(aguardaMac(l) ? "aviso" : "info", `Assign: ${l.assignMac.genotipos} genótipos`, aguardaMac(l) ? "Assign escolhido: aguardando o código NMDP na API MAC" : "O Assign tem mais de um genótipo: se for liberado, precisa de código NMDP (API MAC)");
     const vistos = new Set();
     for (const q of l.qc) {
-      if (q.nivel === "info" && q.metrica !== "edicoes") continue;
+      if (q.nivel === "info" && !["edicoes", "nulo"].includes(q.metrica)) continue;
       const k = q.metrica + q.nivel; if (vistos.has(k)) continue; vistos.add(k);
-      const txt = q.metrica === "ld" ? (/nunca/.test(q.texto) ? "LD: nunca visto" : /sem registro/.test(q.texto) ? "LD: alelo sem registro" : "LD: incomum") : q.metrica === "edicoes" ? "Edições" : ROT_QC[q.metrica] || q.metrica;
+      const txt = q.metrica === "edicoes" ? "Edições" : q.metrica === "nulo" ? (q.nivel === "info" ? "Nulo nas alternativas" : "Alelo nulo") : q.metrica === "raro" ? (/sem registro/.test(q.texto) ? "Alelo sem registro" : "Alelo raro") : ROT_QC[q.metrica] || q.metrica;
       chip(q.nivel, txt, q.texto);
     }
+    // LD: só informativo aqui (a conferência é feita na etapa Ligação, com os dois genes juntos)
+    for (const x of l.ldAlertas || []) if (x.nivel !== "info") chip("ld", /nunca/.test(x.texto) ? "LD: nunca visto" : /sem registro/.test(x.texto) ? "LD: alelo sem registro" : "LD: incomum", x.texto + " — confira na etapa Ligação");
     if (hemiInfo) {
       if (hemiInfo.conflito) chip("erro", "DRB1 × cópias", hemiInfo.conflito);
       else if (hemiInfo.tipado) chip("info", `${hemiInfo.copias} cópia${hemiInfo.copias === 1 ? "" : "s"}`, hemiInfo.motivo || "Conferência DRB3/4/5");
@@ -2684,8 +2751,8 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
     const hemi0 = HLA.HEMI.includes(lc) ? new Map(HLA.analisarHemizigose(E.cons, E.decisoes).map(a => [a.chave, a.locos[lc]])) : null;
     // não tipado em nenhum software, sem decisão e sem conflito com o DRB1: vai para uma linha compacta no fim
     const vazia = l => l.comp.status === "ausente" && !(l.engine && l.opcoes.engine) && !l.opcoes.assign && !E.decisoes[l.chave] && !(hemi0 && hemi0.get(l.chaveAmostra) && hemi0.get(l.chaveAmostra).conflito);
-    const naoTipadas = todas.filter(vazia);
-    const ls = filtrarGene(todas.filter(l => !vazia(l)));
+    const naoTipadas = todas.filter(vazia);   // mostradas na tabela como "não tipado", no fim do filtro "Todas"
+    const ls = filtrarGene(todas.filter(l => !vazia(l))).concat(E.genFiltro === "todos" ? naoTipadas : []);
     const soE = modoEngine();
     const hemi = hemi0;
     for (const k of [...E.selGenes]) if (!E.porChave.has(k) || E.porChave.get(k).locus !== lc) E.selGenes.delete(k);
@@ -2695,7 +2762,7 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
       const lsG = E.cons.linhas.filter(l => l.locus === g), np = lsG.filter(pendente).length;
       return `<button class="gv-aba" data-gene="${h(g)}" aria-pressed="${g === lc}">${h(g.replace("HLA-", ""))}${np ? `<span class="cont" title="${np} pendente(s)">${np}</span>` : `<span class="ok-g" title="sem pendências">✓</span>`}</button>`;
     }).join("");
-    const filtros = [["todos", `Todas (${todas.length - naoTipadas.length})`], ["pendentes", `Pendentes (${todas.filter(pendente).length})`], ["divergencias", soE ? "Revisar" : "Divergências"], ["alertas", "Com alertas"], ["rejeitados", `Rejeitados (${todas.filter(ehRej).length})`]];
+    const filtros = [["todos", `Todas (${todas.length})`], ["pendentes", `Pendentes (${todas.filter(pendente).length})`], ["divergencias", soE ? "Revisar" : "Divergências"], ["alertas", "Com alertas"], ["rejeitados", `Rejeitados (${todas.filter(ehRej).length})`]];
     const idx = genes.indexOf(lc), prox = genes[idx + 1];
     const linhas = ls.map(l => {
       const e = l.engine, a = l.assign, ef = efetiva(l), d = E.decisoes[l.chave];
@@ -2719,7 +2786,7 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
         ? `<button class="gv-sw lado${daAssign ? " escolhido" : ""}" data-gv="assign" data-chave="${h(l.chave)}" title="${h((a.gl || "") + "\nClique para liberar o Assign")}">${al2(l.opcoes.assign)}<span class="s">${nGenA > 1 ? `${nGenA} genótipos${l.assignMac ? " → API MAC" : ""}` : "1 genótipo"}${daAssign && fonte === "mac" ? " · MAC" : ""}</span></button>`
         : `<span class="gv-vazio">${a ? "não tipado" : "ausente"}</span>`}</td>`;
       const marca = st === "ausente" && !e ? "" : marcaDecisao(l);
-      return `<tr class="${pend ? "pend" : ""}${E.aberto === l.chave ? " sel" : ""}">
+      return `<tr class="${pend ? "pend" : ""}${E.aberto === l.chave ? " sel" : ""}${st === "ausente" && !l.opcoes.engine && !l.opcoes.assign ? " vazia" : ""}">
         <td class="ck"><input type="checkbox" data-sel="${h(l.chave)}" ${E.selGenes.has(l.chave) ? "checked" : ""} aria-label="selecionar ${h(l.id)}"></td>
         <td class="am"><button class="gv-am" data-abrir="${h(l.chave)}" title="Abrir detalhes (métricas, genótipos, manual)">${h(l.id)}</button></td>
         ${soE ? "" : `<td><span class="badge st-${st} gv-st" title="${h(HLA.STATUS[st].rotulo)}">${ICONE[st]} ${h(ROT_CURTO[st])}</span></td>`}
@@ -2748,9 +2815,9 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
       <div class="gv-wrap"><table class="gv">
         <thead><tr><th class="ck"><input type="checkbox" id="gv-todas" title="Selecionar todas as visíveis"></th><th>Amostra</th>${soE ? "" : "<th>Comparação</th>"}<th>NGSengine</th>${soE ? "" : "<th>Assign</th>"}<th></th><th>Resultado final</th><th>Alertas</th></tr></thead>
         <tbody>${linhas || `<tr><td colspan="8" class="muted" style="padding:18px">Nenhuma amostra neste filtro.</td></tr>`}</tbody></table></div>
-      ${naoTipadas.length && E.genFiltro === "todos" ? `<div class="muted" style="font-size:12.5px;margin-top:8px">Não tipado em nenhum software (${naoTipadas.length}): ${naoTipadas.map(l => `<button class="gv-am" style="font-size:12px" data-abrir="${h(l.chave)}">${h(l.id)}</button>`).join(" ")}</div>` : ""}
+
       <div class="gv-rodape">${nPendG ? `<span class="muted">${nPendG} pendente(s) em ${h(lc)}</span>` : `<span style="color:var(--good);font-weight:600">✓ ${h(lc)} sem pendências</span>`}
-        ${prox ? `<button class="btn ${nPendG ? "" : "primario"}" data-gene="${h(prox)}">Próximo gene: ${h(prox.replace("HLA-", ""))} →</button>` : `<button class="btn ${E.cons.linhas.some(pendente) ? "" : "primario"}" data-ir="exportar">Ir para Exportar →</button>`}</div>`;
+        ${prox ? `<button class="btn ${nPendG ? "" : "primario"}" data-gene="${h(prox)}">Próximo gene: ${h(prox.replace("HLA-", ""))} →</button>` : `<button class="btn ${E.cons.linhas.some(pendente) ? "" : "primario"}" data-ir="hemi">Próxima etapa: 2 · DRB3/4/5 →</button>`}</div>`;
   }
   function decidirRapido(l, fonte) {
     if (fonte === "nt") {
@@ -3276,14 +3343,15 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
     return `<div class="cartao" style="margin-bottom:14px"><h3>DRB3, DRB4 e DRB5: quantos alelos liberar</h3>
       <div class="sub">O NGSengine duplica automaticamente os genes hemizigotos (ex.: <span class="mono">DRB3*02:02:01+DRB3*02:02:01</span>). Duas evidências independentes sugerem quantos alelos liberar:
         <b>DRB1</b> — DR52 (DRB1*03, 11, 12, 13, 14) → DRB3; DR53 (DRB1*04, 07, 09) → DRB4; DR51 (DRB1*15, 16) → DRB5; DRB1*01, 08 e 10 sem esses genes;
-        <b>dosagem gênica</b> — na captura híbrida os reads mapeados ao gene (TotalReads) são proporcionais ao número de cópias: reads do gene ÷ reads do gene de referência da classe no mesmo barcode (classe II: <b>${h(E.cons.dosagemRef.II.ref ? E.cons.dosagemRef.II.ref.replace("HLA-", "") : "—")}</b>), calibrado pelos heterozigotos da placa (= 2 cópias; DRB3/4/5 calibrados juntos). A referência pode ser trocada na aba Qualidade. A barra mostra 0–3 cópias, com marcas em 1 e 2 e a zona cinza sombreada.
+        ${E.cons.dosagemRef ? `<b>dosagem gênica</b> — na captura híbrida os reads mapeados ao gene (TotalReads) são proporcionais ao número de cópias: reads do gene ÷ reads do gene de referência da classe no mesmo barcode (classe II: <b>${h(E.cons.dosagemRef.II.ref ? E.cons.dosagemRef.II.ref.replace("HLA-", "") : "—")}</b>), calibrado pelos heterozigotos da placa (= 2 cópias; DRB3/4/5 calibrados juntos). A referência pode ser trocada na aba Qualidade. A barra mostra 0–3 cópias, com marcas em 1 e 2 e a zona cinza sombreada.` : `<b>estimativa de cópias desligada</b> nesta corrida (protocolo de PCR/amplicon): a sugestão vem só do DRB1, e a duplicação continua sendo removida. Para ligar, use a aba Qualidade.`}
         A borda tracejada indica uma sugestão ainda não confirmada.</div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px">
         <span class="chip">${hz.length} amostras</span><span class="chip">${nAjuste} duplicação(ões) removida(s)</span>
         <span class="chip ${nDivDos ? "alerta" : ""}">DRB1 × dosagem: ${nConcDos} concordam${nDivDos ? ` · ${nDivDos} divergem` : ""}</span>
         <span class="chip ${nConf ? "alerta" : ""}">${nConf} conflito(s) com o DRB1${nPend ? ` · ${nPend} sem confirmar` : ""}</span>
         <button class="btn pequeno" id="hemi-aceitar" style="margin-left:auto">Confirmar todas as sugestões</button></div></div>
-      <div class="placa-wrap"><table class="tabela-qc hz"><thead><tr><th>Amostra</th><th>DRB1</th><th>DRB3 (DR52)</th><th>DRB4 (DR53)</th><th>DRB5 (DR51)</th></tr></thead><tbody>${linhas}</tbody></table></div>`;
+      <div class="placa-wrap"><table class="tabela-qc hz"><thead><tr><th>Amostra</th><th>DRB1</th><th>DRB3 (DR52)</th><th>DRB4 (DR53)</th><th>DRB5 (DR51)</th></tr></thead><tbody>${linhas}</tbody></table></div>
+      <div class="gv-rodape"><button class="btn" data-ir="genes">← 1 · Por gene</button><button class="btn primario" data-ir="ld">Próxima etapa: 3 · Ligação →</button></div>`;
   }
 
   // ================================================================ desequilíbrio de ligação
@@ -3293,11 +3361,34 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
     const [rot, cls] = ROT_LD[x.status] || ["?", "vazio"];
     return `<span class="ld-chip ld-${cls}">${h(rot)}</span>`;
   }
-  function celulaLD(x) {
+  // conferência do LD (etapa 3): o analista confirma cada combinação; se a tipagem mudar depois, pede de novo
+  const assinaturaLD = x => (x.haplotipos || []).join(" + ");
+  function confLD(chaveAmostra, par, x) {
+    const c = E.ldConf[chaveAmostra + "|" + par];
+    if (!c) return null;
+    return c.assinatura === assinaturaLD(x) ? c : { ...c, desatualizada: true };
+  }
+  function pendenciasLD() {
+    const out = [];
+    for (const a of amostrasOrdenadas()) for (const [par, lc] of [["DRB1~DQB1", "HLA-DRB1"], ["B~C", "HLA-B"]]) {
+      const x = ((a.linhas[lc] || a.linhas[par === "B~C" ? "HLA-C" : "HLA-DQB1"]) || {}).ld;
+      if (!x || x.status === "sem_dados") continue;
+      const c = confLD(a.chave, par, x);
+      if (!c || c.desatualizada) out.push({ chave: a.chave, id: a.id, par, x });
+    }
+    return out;
+  }
+  function botaoConfLD(chaveAmostra, par, x) {
+    if (!x || x.status === "sem_dados") return "";
+    const c = confLD(chaveAmostra, par, x);
+    if (c && !c.desatualizada) return `<div class="ld-conf ok">✓ conferido por ${h(c.usuario)} <a href="#" data-ld-desfazer="${h(chaveAmostra + "|" + par)}">desfazer</a></div>`;
+    return `<div class="ld-conf">${c ? `<span class="hz-alerta">a tipagem mudou depois da conferência</span> ` : ""}<button class="btn pequeno" data-ld-conf="${h(chaveAmostra + "|" + par)}">Confirmar</button></div>`;
+  }
+  function celulaLD(x, chaveAmostra, par) {
     if (!x || x.status === "sem_dados") return `<td>${chipLD(x)}<div class="muted" style="font-size:11.5px">genótipo incompleto, NT ou rejeitado</div></td>`;
     const hs = (x.haplotipos || []).map((hp, i) => `<div class="mono ld-hap">${h(hp.replace(/HLA-/g, ""))} ${x.contagens[i] < 0.5 ? `<span class="hz-diverge">não observado</span>` : `<span class="muted">≈${x.contagens[i]} obs.${x.dl && x.dl[i] !== null ? ` · D′ ${x.dl[i]}` : ""}</span>`}</div>`).join("");
     const alt = x.alternativas && x.alternativas.length ? `<div class="muted" style="font-size:11px">fase alternativa: ${x.alternativas.map(a => `${h(a.h.map(q => q.replace(/HLA-/g, "")).join(" + "))} (${(100 * a.prob).toFixed(0)}%)`).join("; ")}</div>` : "";
-    return `<td>${chipLD(x)}${x.confianca !== null && x.confianca < 0.99 ? ` <span class="muted" style="font-size:11.5px">fase ${(100 * x.confianca).toFixed(0)}%</span>` : ""}${hs}${x.ausentes && x.ausentes.length ? `<div class="hz-alerta">sem registro: ${h(x.ausentes.join(", "))}</div>` : ""}${alt}</td>`;
+    return `<td>${chipLD(x)}${x.confianca !== null && x.confianca < 0.99 ? ` <span class="muted" style="font-size:11.5px">fase ${(100 * x.confianca).toFixed(0)}%</span>` : ""}${hs}${x.ausentes && x.ausentes.length ? `<div class="hz-alerta">sem registro: ${h(x.ausentes.join(", "))}</div>` : ""}${alt}${chaveAmostra ? botaoConfLD(chaveAmostra, par, x) : ""}</td>`;
   }
   function renderLD() {
     const R = E.refLD;
@@ -3334,14 +3425,16 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
     const jaIncluida = (R.placas || []).some(p => p.placa === placaAtual || p.placa.startsWith(E.cons.projeto));
     return topo + (jaIncluida ? `<div class="aviso-imgt" style="margin-top:14px">Esta placa já faz parte da referência: os haplótipos dela entram na própria contagem (um haplótipo raro desta placa aparecerá com pelo menos 1 observação).</div>` : "") + `<div class="cartao" style="margin-top:14px"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><h3 style="margin:0">Esta corrida</h3>
         <span class="ld-chip ld-erro">${cont.nunca} nunca observado(s)</span><span class="ld-chip ld-aviso">${cont.raro + cont.alelo_ausente} incomum(ns)</span><span class="ld-chip ld-ok">${cont.esperado} esperado(s)</span>
+        ${(() => { const p = pendenciasLD(); const nEsp = p.filter(y => y.x.status === "esperado").length; return `<span class="ld-chip ${p.length ? "ld-aviso" : "ld-ok"}">${p.length ? p.length + " a conferir" : "tudo conferido"}</span>${nEsp ? `<button class="btn pequeno" id="ld-conf-esperados">Confirmar os ${nEsp} esperados</button>` : ""}`; })()}
         <label style="margin-left:auto;font-size:13px"><input type="checkbox" id="ld-so" ${E.ldSoIncomuns ? "checked" : ""}> Só incomuns</label></div>
       <div class="sub">Fase mais provável dos dois haplótipos de cada amostra (EM sobre a referência), com o número aproximado de vezes em que cada haplótipo foi observado no legado. Usa a tipagem que seria liberada (NGSengine aprovado; senão Assign). Clique numa linha para abrir a tipagem.</div>
       <table class="tabela-qc"><thead><tr><th>Amostra</th><th>DRB1 · DQB1</th><th>DRB1~DQB1</th><th>B · C</th><th>B~C</th></tr></thead><tbody>
       ${vis.map(({ a, dq, bc }) => {
         const tip = lc => { const l = a.linhas[lc]; if (!l) return "—"; const op = l.engine && l.engine.status === "Approved" && l.opcoes.engine ? l.opcoes.engine : l.opcoes.assign; return op ? op.filter(Boolean).map(x => x.replace(/^[A-Z0-9]+\*/, "")).join("/") : "—"; };
         const ch = (a.linhas["HLA-DRB1"] || a.linhas["HLA-B"] || {}).chave || "";
-        return `<tr data-chave="${h(ch)}"><td class="mono"><b>${h(a.id)}</b></td><td class="mono" style="font-size:11.5px">${h(tip("HLA-DRB1"))}<br>${h(tip("HLA-DQB1"))}</td>${celulaLD(dq)}<td class="mono" style="font-size:11.5px">${h(tip("HLA-B"))}<br>${h(tip("HLA-C"))}</td>${celulaLD(bc)}</tr>`;
-      }).join("")}</tbody></table></div>`;
+        return `<tr data-chave="${h(ch)}"><td class="mono"><b>${h(a.id)}</b></td><td class="mono" style="font-size:11.5px">${h(tip("HLA-DRB1"))}<br>${h(tip("HLA-DQB1"))}</td>${celulaLD(dq, a.chave, "DRB1~DQB1")}<td class="mono" style="font-size:11.5px">${h(tip("HLA-B"))}<br>${h(tip("HLA-C"))}</td>${celulaLD(bc, a.chave, "B~C")}</tr>`;
+      }).join("")}</tbody></table></div>
+      <div class="gv-rodape"><button class="btn" data-ir="hemi">← 2 · DRB3/4/5</button><button class="btn ${pendenciasLD().length ? "" : "primario"}" data-ir="exportar">Próxima etapa: 4 · Exportar →</button></div>`;
   }
   function ligarLD(app) {
     const b = (id, fn) => { const x = app.querySelector(id); if (x) x.onclick = fn; };
@@ -3352,6 +3445,11 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
       m.querySelector("#sim").onclick = () => { E.refLD = null; E.fonteLD = null; try { localStorage.removeItem(CHAVE_REF_LD); } catch (e) {} fecharModal(); recalcular(); render(); toast("Referência importada removida. Recarregue a página para usar a do repositório (referencia_ld.json), se houver."); };
     }));
     const so = app.querySelector("#ld-so"); if (so) so.onchange = () => { E.ldSoIncomuns = so.checked; render(); };
+    const marcar = (k, x) => { E.ldConf[k] = { assinatura: assinaturaLD(x), status: x.status, usuario: E.analista || "analista", quando: new Date().toISOString() }; };
+    const xDe = k => { const [ch, par] = [k.slice(0, k.lastIndexOf("|")), k.slice(k.lastIndexOf("|") + 1)]; const p = pendenciasLD().find(y => y.chave === ch && y.par === par); return p && p.x; };
+    app.querySelectorAll("[data-ld-conf]").forEach(bt => bt.onclick = ev => { ev.stopPropagation(); garantirAnalista(() => { const x = xDe(bt.dataset.ldConf); if (x) marcar(bt.dataset.ldConf, x); salvar(); render(); }); });
+    app.querySelectorAll("[data-ld-desfazer]").forEach(a => a.onclick = ev => { ev.preventDefault(); ev.stopPropagation(); delete E.ldConf[a.dataset.ldDesfazer]; salvar(); render(); });
+    b("#ld-conf-esperados", () => garantirAnalista(() => { for (const y of pendenciasLD()) if (y.x.status === "esperado") marcar(y.chave + "|" + y.par, y.x); salvar(); render(); toast("Haplótipos esperados confirmados."); }));
     const usar = ref => {
       E.refLD = ref; E.fonteLD = "importada neste navegador";
       try { localStorage.setItem(CHAVE_REF_LD, JSON.stringify(ref)); } catch (e) { toast("Não foi possível salvar a referência neste navegador; exporte o .json."); }
@@ -3384,14 +3482,13 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
       <div class="cartao"><h3>Sinal heterozigoto vs ruído</h3><div class="sub">Quanto maior, mais separado o 2º alelo do ruído · só locos heterozigotos</div><div id="g-sn"></div></div>
       <div class="cartao"><h3>Reads por amostra</h3><div class="sub">Total de reads no NGSengine</div><div id="g-reads"></div></div>
       <div class="cartao largo"><h3>Detector de número de cópias</h3><div class="sub">Razão = reads mapeados do gene ÷ reads do gene de referência da mesma classe, no mesmo barcode; 2 cópias = mediana dos heterozigotos do gene · faixa sombreada = zona cinza · homozigoto perto de 1 = possível drop-out ou hemizigose; perto de 2 = homozigose confirmada · cinza = gene não tipado (ruído de mapeamento)</div>
-        ${seletorReferencia()}<div id="g-dos"></div></div>
+        ${seletorReferencia()}${E.cons.dosagemRef ? `<div id="g-dos"></div>` : ""}</div>
       <div class="cartao largo"><h3>Limites de qualidade</h3><div class="sub">Valores iniciais sugeridos (o dashboard antigo alertava profundidade &lt; 50x). Ajuste ao POP do laboratório: os alertas e as sugestões são recalculados na hora e ficam salvos.</div>
         <div class="limites">${campos.map(([k, r]) => `<label>${h(r)}<input type="number" step="any" data-lim="${k}" value="${L[k]}"></label>`).join("")}</div>
         <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;font-size:13px">
           <label title="Desligado (recomendado): qualquer diferença entre as listas de genótipos aparece em amarelo"><input type="checkbox" id="cfg-nulos" ${E.cfg.ignorarNulos ? "checked" : ""}> Ignorar alternativas com alelo nulo (N) na comparação</label>
           <label><input type="checkbox" id="cfg-qc" ${E.cfg.revisarAlertaVermelho ? "checked" : ""}> Exigir revisão de concordantes com alerta vermelho</label>
           <label><input type="checkbox" id="cfg-avancar" ${E.cfg.avancar ? "checked" : ""}> Ir para a próxima pendência após decidir</label>
-          <label><input type="checkbox" id="cfg-ldv" ${E.cfg.ldNuncaVermelho !== false ? "checked" : ""}> LD nunca observado = alerta vermelho (revisão)</label>
           <button class="btn pequeno" id="lim-padrao">Restaurar padrões</button>
         </div></div>
       <div class="cartao largo"><h3>Locos com alerta (${alertas.length})</h3><div class="sub">Clique para abrir a comparação</div>
@@ -3403,6 +3500,8 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
 
   function seletorReferencia() {
     const R = E.cons.dosagemRef;
+    const chave = `<label style="font-size:13px;display:block;margin:6px 0"><input type="checkbox" id="cfg-dosagem" ${E.cfg.dosagem !== false ? "checked" : ""}> Estimar o número de cópias (só para captura híbrida; desligue em corridas de PCR/amplicon)</label>`;
+    if (!R) return chave + `<div class="aviso-imgt">Estimativa de cópias desligada nesta corrida. A duplicação de DRB3/4/5 continua sendo removida pelo DRB1.</div>`;
     const bloco = cl => {
       const i = R[cl];
       if (!i || !i.candidatos.length) return "";
@@ -3526,7 +3625,7 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
       $("#g-sn").appendChild(s);
     }
     // 5) dosagem gênica
-    {
+    if (E.cons.dosagemRef) {
       const W = 1280, H = 300, m = { l: 44, r: 12, t: 30, b: 30 };
       const pts = E.cons.linhas.filter(l => l.dosagem && l.dosagem.copias !== null && l.engine);
       const max = Math.max(3, ...pts.map(p => p.dosagem.copias)) * 1.02;
@@ -3592,6 +3691,7 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
           ${passo(!c.pend.length, c.pend.length ? `<b>${c.pend.length}</b> tipagem(ns) ainda sem decisão — ficam <b>em branco</b> no resultado final. <a href="#" data-ir="revisao">Revisar</a>` : "Todas as tipagens têm decisão.")}
           ${passo(!confl.length, confl.length ? `<b>${confl.length}</b> conflito(s) de DRB3/4/5 × DRB1 sem confirmação (${h(confl.slice(0, 6).join(", "))}${confl.length > 6 ? "…" : ""}). <a href="#" data-ir="hemi">Resolver</a>` : `DRB3/4/5 conferidos com o DRB1 · ${ajustes} locus(i) liberado(s) com 1 alelo (duplicação removida).`, "aviso")}
           ${passo(true, `${c.nts.length} genótipo(s) rejeitado(s)/não liberado(s) sairão como <b>NT</b>.`)}
+          ${E.refLD ? (() => { const p = pendenciasLD(), inc = p.filter(y => y.x.status !== "esperado"); return passo(!p.length, p.length ? `Ligação: <b>${p.length}</b> combinação(ões) DRB1~DQB1 / B~C sem conferência${inc.length ? `, ${inc.length} incomum(ns) ou nunca observada(s)` : ""}. <a href="#" data-ir="ld">Conferir</a>` : "Ligação: todas as combinações DRB1~DQB1 e B~C conferidas.", "aviso"); })() : passo(true, "Ligação: sem referência de LD carregada.")}
           ${passo(!libQC.length, libQC.length ? `<b>${libQC.length}</b> tipagem(ns) liberada(s) com alerta vermelho de QC (${libQC.slice(0, 8).map(l => h(l.id + " " + l.locus.replace("HLA-", ""))).join(", ")}${libQC.length > 8 ? "…" : ""}).` : "Nenhuma tipagem liberada com alerta vermelho.", "aviso")}
           ${modoEngine() ? passo(true, "Modo só NGSengine: sem comparação com o Assign.") : `${passo(!iv.difere, iv.difere ? `Versões IMGT/HLA diferentes: NGSengine ${h(iv.ve.join(", "))} × Assign ${h(iv.va.join(", "))}.` : "Mesma versão IMGT/HLA nos dois softwares.", "aviso")}
           ${passo(!semAssign.length, semAssign.length ? `Amostra(s) sem resultado no Assign: ${semAssign.map(a => h(a.id)).join(", ")}.` : "Todas as amostras do NGSengine têm resultado no Assign.", "aviso")}`}
@@ -3752,8 +3852,9 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
       } catch (e) { toast("Arquivo de sessão inválido."); }
     };
     chk("#cfg-nt", "rejeitadoNT");
-    chk("#cfg-ldv", "ldNuncaVermelho");
     ligarLD(app);
+    const cd = app.querySelector("#cfg-dosagem");
+    if (cd) cd.onchange = () => { E.cfg.dosagem = cd.checked; recalcular(); salvar(); render(); toast(cd.checked ? "Estimativa de cópias ligada (captura híbrida)." : "Estimativa de cópias desligada (PCR/amplicon)."); };
     app.querySelectorAll("[data-ref]").forEach(r => r.onchange = () => {
       E.cfg["refClasse" + r.dataset.ref] = r.value; recalcular(); salvar(); render();
       toast(`Referência da classe ${r.dataset.ref}: ${r.value === "auto" ? "automática" : r.value.replace("HLA-", "")}`);
@@ -3812,6 +3913,10 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
   ["dragleave", "drop"].forEach(t => document.addEventListener(t, ev => { ev.preventDefault(); if (t === "drop" || ev.target === drop) drop.classList.remove("sobre"); }));
   document.addEventListener("drop", ev => { if (ev.dataTransfer && ev.dataTransfer.files.length && !E.cons) receberArquivos([...ev.dataTransfer.files]); });
   $("#bt-analisar").onclick = analisar;
+  (function () {
+    const salvo = localStorage.getItem("hlaConsenso:protocolo") || "captura";
+    document.querySelectorAll('input[name="protocolo"]').forEach(r => { r.checked = r.value === salvo; r.onchange = () => localStorage.setItem("hlaConsenso:protocolo", r.value); });
+  })();
   $("#abas").onclick = ev => { const b = ev.target.closest("button[data-aba]"); if (b) { E.aba = b.dataset.aba; render(); } };
   $("#bt-atalhos").onclick = mostrarAtalhos;
   $("#bt-nova").onclick = () => location.reload();

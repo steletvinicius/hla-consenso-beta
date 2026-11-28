@@ -396,7 +396,7 @@ a.btn { text-decoration: none; color: inherit; display: inline-flex; align-items
 .btn.pequeno.primario { color: #fff; }
 .gv-wrap { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); }   /* sem overflow: o cabeçalho trava em relação à página */
 table.gv { width: 100%; border-collapse: collapse; font-size: 13px; }
-table.gv th { text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .4px; color: var(--text-muted); font-weight: 600; padding: 8px 8px; border-bottom: 1px solid var(--border); background: var(--surface-2); position: sticky; top: var(--gv-lote-h, 0px); z-index: 2; box-shadow: 0 1px 0 var(--border); }
+table.gv th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--surface-1); font-weight: 700; padding: 9px 8px; border-bottom: 1px solid var(--text-primary); background: var(--text-primary); position: sticky; top: var(--gv-lote-h, 0px); z-index: 2; box-shadow: 0 1px 0 var(--border); }
 table.gv thead th:first-child { border-top-left-radius: var(--radius); } table.gv thead th:last-child { border-top-right-radius: var(--radius); }
 table.gv td { padding: 5px 8px; border-bottom: 1px solid var(--surface-2); vertical-align: middle; }
 table.gv tr.pend td { background: color-mix(in srgb, var(--critical) 4%, transparent); }
@@ -436,6 +436,19 @@ body.arrastando .painel { transition: none; }
 .gv-nt:hover { border-color: var(--critical); color: var(--critical); }
 .gv-nt.escolhido { background: var(--critical-soft); border: 2px solid var(--critical); color: var(--critical); padding: 4px 6px; }
 table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: center; }
+table.gv tr.vazia td { color: var(--text-muted); }
+
+.gv-chip.ld { background: var(--side-soft); border-color: var(--side); border-style: dashed; color: var(--text-secondary); }
+.protocolo { display: flex; flex-direction: column; gap: 4px; margin: 14px 0 4px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-1); font-size: 13.5px; }
+.protocolo label { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+.abas .etapa { display: inline-grid; place-items: center; width: 17px; height: 17px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 10.5px; font-weight: 700; margin-right: 6px; }
+.abas-sep { width: 1px; align-self: stretch; background: var(--border); margin: 4px 4px; }
+.ld-conf { margin-top: 4px; font-size: 12px; } .ld-conf.ok { color: var(--good); } .ld-conf a { color: var(--text-muted); margin-left: 6px; }
+/* abas numa linha própria, abaixo do cabeçalho: sobra espaço para os dados da corrida */
+.topo { flex-wrap: wrap; row-gap: 8px; }
+.topo .abas { order: 10; flex-basis: 100%; width: 100%; justify-content: flex-start; }
+.topo .projeto .chips { flex-wrap: wrap; }
+.chip { white-space: nowrap; }
 
 </style>
 <style>
@@ -1665,6 +1678,30 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
     return [{ nivel: "info", metrica: "ld", texto: `LD ${x.par}: haplótipos esperados — ${hs}` }];
   }
 
+  /** Alelo nulo (sufixo N) na tipagem que seria liberada (aviso) ou só entre as alternativas (informativo). */
+  function alertasNulos(lin) {
+    const nulo = a => /\*[\d:]+N$/.test(String(a || ""));
+    const naTipagem = [...(lin.opcoes.engine || []), ...(lin.opcoes.assign || [])].filter(nulo);
+    if (naTipagem.length) return [{ nivel: "aviso", metrica: "nulo", texto: `Alelo nulo na tipagem: ${[...new Set(naTipagem)].join(", ")}` }];
+    const alt = [...(lin.comp.paresEngine || []), ...(lin.comp.paresAssign || [])].join("+").split("+").filter(nulo);
+    const glE = lin.engine ? String(lin.engine.glConclusiva || "").split(/[|+/]/).filter(nulo) : [];
+    const todos = [...new Set([...alt, ...glE])];
+    return todos.length ? [{ nivel: "info", metrica: "nulo", texto: `Alelo nulo entre os genótipos possíveis: ${todos.slice(0, 4).join(", ")}${todos.length > 4 ? "…" : ""}` }] : [];
+  }
+  /** Alelo raro: pouco observado na referência local (legado de doadores; só os locos da referência de LD). */
+  function alertasRaros(lin, cfg, L) {
+    if (!cfg || typeof cfg.contarAlelo !== "function") return [];
+    const op = lin.engine && lin.engine.status === "Approved" && lin.opcoes.engine ? lin.opcoes.engine : lin.opcoes.assign || lin.opcoes.engine;
+    if (!op) return [];
+    const out = [];
+    for (const a of [...new Set(op.filter(Boolean))]) {
+      const r = cfg.contarAlelo(lin.locus, a);
+      if (!r) continue;   // locus fora da referência ou código MAC
+      if (r.n < 0.5) out.push({ nivel: "aviso", metrica: "raro", texto: `Alelo sem registro na referência local: ${r.alelo} (0 de ${r.total} cromossomos)` });
+      else if (r.n < L.ldLimiteRaro) out.push({ nivel: "aviso", metrica: "raro", texto: `Alelo raro na referência local: ${r.alelo} (≈${r.n.toFixed(1)} de ${r.total} cromossomos)` });
+    }
+    return out;
+  }
   const HEMI_LOCOS = ["HLA-DRB3", "HLA-DRB4", "HLA-DRB5"];
   function alertasDosagem(lin, L) {
     const d = lin.dosagem, out = [];
@@ -1780,10 +1817,15 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
       if (e && !aprov && temTipagemEngine) m = `Locus ${e.status === "Rejected" ? "rejeitado" : "não aprovado"} no NGSengine` + (m ? " · " + m : "");
       return { fonte: null, automatica: false, motivo: m || "Revisar" };
     }
-    const dosagemRef = calcularDosagem(linhas, L, cfg);
+    // dosagem só para captura híbrida (cfg.dosagem === false: corrida de PCR/amplicon, sem estimativa de cópias)
+    const usarDosagem = !(cfg && cfg.dosagem === false);
+    const dosagemRef = usarDosagem ? calcularDosagem(linhas, L, cfg) : null;
+    if (!usarDosagem) for (const l of linhas) l.dosagem = null;
     if (cfg && typeof cfg.checarLD === "function") aplicarLD(linhas, cfg.checarLD);
     for (const lin of linhas) {
-      lin.qc = avaliarQC(lin.engine, lin.assign, L).concat(alertasDosagem(lin, L), alertasLD(lin, cfg));
+      // LD é uma revisão à parte (combina 2 genes): fica em lin.ldAlertas, só informativo, e não entra no QC
+      lin.ldAlertas = alertasLD(lin, cfg);
+      lin.qc = avaliarQC(lin.engine, lin.assign, L).concat(alertasDosagem(lin, L), alertasNulos(lin), alertasRaros(lin, cfg, L));
       lin.qcNivel = pior(lin.qc);
       lin.sugestao = sugerir(lin);
       if (modoEngine && lin.comp.status === "aprovado" && !lin.sugestao.automatica) lin.comp.status = "revisar";
@@ -2090,7 +2132,7 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
     return txt;
   }
 
-  const VERSAO = "2026.11.27-4";   // atualize a cada versão publicada (aparece no app, no relatório e no gabarito)
+  const VERSAO = "2026.11.27-7";   // atualize a cada versão publicada (aparece no app, no relatório e no gabarito)
   const api = {
     VERSAO, codificarMac,
     LOCOS, STATUS, LIMITES_PADRAO, enxugarXml, parseXml, lerEngine, lerAssign, reduzirCampos, tresCampos,
@@ -2472,6 +2514,25 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
     t(G3b, "Liberar o Summary do Assign sem código, por decisão explícita", async () => celulas(await F.executar(ent, { decisoes: { "112|HLA-DPB1": { fonte: "assign", semCodigo: true } } }), "112", "HLA-DPB1", ["DPB1*04:01:01", "DPB1*02:01:02"]));
     t(G3b, "Código obtido na API MAC a partir do Assign entra no resultado", async () => celulas(await comDec(), "112", "HLA-DPB1", ["DPB1*04:01:01", "DPB1*BCDE"]));
 
+    // ---------- 3c. alelos nulos e raros; LD não comanda a revisão por gene
+    const G3c = "3c. Alelos nulos e raros; LD separado da revisão por gene";
+    t(G3c, "Alelo nulo só entre as alternativas do Assign → alerta informativo", async () => {
+      const l = (await semDec()).cons.linhas.find(x => x.chave === "110|HLA-DQB1");
+      verdade(l.qc.some(q => q.metrica === "nulo" && q.nivel === "info"), "alerta de alelo nulo ausente");
+    });
+    t(G3c, "Alelo raro / sem registro na referência local → alerta amarelo, sem bloquear a liberação", async () => {
+      const contarAlelo = (lc, a) => (lc === "HLA-A" ? { alelo: a, n: a.startsWith("A*24") ? 1 : a.startsWith("A*02") ? 0 : 50, total: 200 } : null);
+      const engine = H.lerEngine(xml, "x.xml"), cons = H.consolidar(engine, [H.lerAssign(abas, "a.xlsx")], { contarAlelo });
+      const l = cons.linhas.find(x => x.chave === "101|HLA-A");
+      igual(l.qc.filter(q => q.metrica === "raro").map(q => q.nivel), ["aviso", "aviso"], "alertas de alelo raro"); igual(l.sugestao.fonte, "engine", "liberação automática mantida");
+    });
+    t(G3c, "Haplótipo nunca observado (LD) fica separado: não vira alerta de QC nem pendência", async () => {
+      const checarLD = () => ({ "DRB1~DQB1": { status: "nunca", haplotipos: ["DRB1*15:01~DQB1*02:01", "DRB1*03:01~DQB1*06:02"], contagens: [0, 0], nRef: 100, ausentes: [] } });
+      const engine = H.lerEngine(xml, "x.xml"), cons = H.consolidar(engine, [H.lerAssign(abas, "a.xlsx")], { checarLD });
+      const l = cons.linhas.find(x => x.chave === "101|HLA-DRB1");
+      igual(l.ldAlertas.length, 1, "alerta de LD registrado"); verdade(!l.qc.some(q => q.metrica === "ld"), "LD entrou no QC"); igual(l.sugestao.fonte, "engine", "liberação automática mantida");
+    });
+
     // ---------- 4. dosagem gênica
     const G4 = "4. Detector de número de cópias";
     t(G4, "Referências automáticas: C (classe I) e DRB1 (classe II)", async () => { const d = (await semDec()).cons.dosagemRef; igual([d.I.ref, d.II.ref], ["HLA-C", "HLA-DRB1"]); });
@@ -2484,6 +2545,15 @@ table.gv td.nt { width: 40px; padding-left: 0; padding-right: 0; text-align: cen
     t(G4, "Trocar a referência da classe I para A não muda as classificações", async () => {
       const r = await F.executar(ent, { cfg: { refClasseI: "HLA-A" } });
       igual(r.cons.dosagemRef.I.ref, "HLA-A", "referência"); tip(r, "107|HLA-A", { copias: "1" }); tip(r, "109|HLA-A", { copias: "2" });
+    });
+
+    t(G4, "Corrida de PCR (sem estimativa de cópias): nenhuma dosagem nem alerta de drop-out", async () => {
+      const r = await F.executar(ent, { cfg: { dosagem: false } });
+      igual(r.cons.dosagemRef, null, "referência da dosagem"); tip(r, "107|HLA-A", { copias: "", sugestao: "engine" }); tip(r, "101|HLA-DRB3", { copias: "" });
+    });
+    t(G4, "Sem estimativa de cópias, a duplicação de DRB3/4/5 continua sendo removida pelo DRB1", async () => {
+      const r = await F.executar(ent, { cfg: { dosagem: false } });
+      celulas(r, "101", "HLA-DRB3", ["DRB3*01:01:02", ""]); celulas(r, "102", "HLA-DRB3", ["DRB3*01:01:02", "DRB3*02:02:01"]); celulas(r, "104", "HLA-DRB4", ["DRB4*01:03:01", "DRB4*01:03:01"]);
     });
 
     // ---------- 5. DRB3/4/5
