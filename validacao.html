@@ -450,6 +450,15 @@ table.gv tr.vazia td { color: var(--text-muted); }
 .topo .projeto .chips { flex-wrap: wrap; }
 .chip { white-space: nowrap; }
 
+table.gv td.gl { font: 11.5px/1.45 var(--mono); max-width: 230px; color: var(--text-secondary); }
+table.gv td.gl .g { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 4px; border-radius: 4px; margin: 1px 0; }
+table.gv td.gl .g.comum { background: var(--good-soft); color: var(--text-primary); }
+table.gv td.gl .g.exclusivo { background: var(--critical-soft); color: var(--text-primary); }
+table.gv td.gl .mais-g { font: 11px var(--sans); color: var(--text-muted); padding-left: 4px; }
+table.gv th.sw-e { box-shadow: inset 0 -3px 0 var(--accent); }
+table.gv th.sw-a { box-shadow: inset 0 -3px 0 var(--side); }
+.gv-sw, .gv-lib { min-width: 120px; }
+
 </style>
 <style>
   .val { max-width: 1100px; margin: 0 auto; padding: 24px 20px 60px; }
@@ -2132,7 +2141,7 @@ table.gv tr.vazia td { color: var(--text-muted); }
     return txt;
   }
 
-  const VERSAO = "2026.11.27-7";   // atualize a cada versão publicada (aparece no app, no relatório e no gabarito)
+  const VERSAO = "2026.11.28";   // atualize a cada versão publicada (aparece no app, no relatório e no gabarito)
   const api = {
     VERSAO, codificarMac,
     LOCOS, STATUS, LIMITES_PADRAO, enxugarXml, parseXml, lerEngine, lerAssign, reduzirCampos, tresCampos,

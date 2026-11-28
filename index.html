@@ -450,6 +450,15 @@ table.gv tr.vazia td { color: var(--text-muted); }
 .topo .projeto .chips { flex-wrap: wrap; }
 .chip { white-space: nowrap; }
 
+table.gv td.gl { font: 11.5px/1.45 var(--mono); max-width: 230px; color: var(--text-secondary); }
+table.gv td.gl .g { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 4px; border-radius: 4px; margin: 1px 0; }
+table.gv td.gl .g.comum { background: var(--good-soft); color: var(--text-primary); }
+table.gv td.gl .g.exclusivo { background: var(--critical-soft); color: var(--text-primary); }
+table.gv td.gl .mais-g { font: 11px var(--sans); color: var(--text-muted); padding-left: 4px; }
+table.gv th.sw-e { box-shadow: inset 0 -3px 0 var(--accent); }
+table.gv th.sw-a { box-shadow: inset 0 -3px 0 var(--side); }
+.gv-sw, .gv-lib { min-width: 120px; }
+
 </style>
 </head>
 <body>
@@ -2112,7 +2121,7 @@ table.gv tr.vazia td { color: var(--text-muted); }
     return txt;
   }
 
-  const VERSAO = "2026.11.27-7";   // atualize a cada versão publicada (aparece no app, no relatório e no gabarito)
+  const VERSAO = "2026.11.28";   // atualize a cada versão publicada (aparece no app, no relatório e no gabarito)
   const api = {
     VERSAO, codificarMac,
     LOCOS, STATUS, LIMITES_PADRAO, enxugarXml, parseXml, lerEngine, lerAssign, reduzirCampos, tresCampos,
@@ -2785,12 +2794,22 @@ table.gv tr.vazia td { color: var(--text-muted); }
       const celA = soE ? "" : `<td>${a && l.opcoes.assign
         ? `<button class="gv-sw lado${daAssign ? " escolhido" : ""}" data-gv="assign" data-chave="${h(l.chave)}" title="${h((a.gl || "") + "\nClique para liberar o Assign")}">${al2(l.opcoes.assign)}<span class="s">${nGenA > 1 ? `${nGenA} genótipos${l.assignMac ? " → API MAC" : ""}` : "1 genótipo"}${daAssign && fonte === "mac" ? " · MAC" : ""}</span></button>`
         : `<span class="gv-vazio">${a ? "não tipado" : "ausente"}</span>`}</td>`;
+      // GLString de cada software: um genótipo por linha (3 campos), verde = presente nos dois softwares
+      const glCel = (pares, bruta, quem) => {
+        const lista = pares || (bruta ? String(bruta).split(quem === "assign" ? "/" : "|").map(g => g.replace(/\s+/g, "")).filter(Boolean) : []);
+        if (!lista.length) return `<td class="gl"><span class="gv-vazio">—</span></td>`;
+        const comuns = new Set(l.comp.comuns || []), MAX = 4;
+        const linha = p => `<div class="g${l.comp.comuns ? (comuns.has(p) ? " comum" : " exclusivo") : ""}">${h(p.split("+").map(semPrefixo).join(" + "))}</div>`;
+        return `<td class="gl" title="${h(bruta || "")}">${lista.slice(0, MAX).map(linha).join("")}${lista.length > MAX ? `<div class="mais-g">+${lista.length - MAX} genótipo(s)</div>` : ""}</td>`;
+      };
+      const glE = e ? glCel(l.comp.paresEngine, e.glConclusiva || e.glResultado, "engine") : `<td class="gl"><span class="gv-vazio">—</span></td>`;
+      const glA = soE ? "" : a ? glCel(l.comp.paresAssign, a.gl, "assign") : `<td class="gl"><span class="gv-vazio">—</span></td>`;
       const marca = st === "ausente" && !e ? "" : marcaDecisao(l);
       return `<tr class="${pend ? "pend" : ""}${E.aberto === l.chave ? " sel" : ""}${st === "ausente" && !l.opcoes.engine && !l.opcoes.assign ? " vazia" : ""}">
         <td class="ck"><input type="checkbox" data-sel="${h(l.chave)}" ${E.selGenes.has(l.chave) ? "checked" : ""} aria-label="selecionar ${h(l.id)}"></td>
         <td class="am"><button class="gv-am" data-abrir="${h(l.chave)}" title="Abrir detalhes (métricas, genótipos, manual)">${h(l.id)}</button></td>
         ${soE ? "" : `<td><span class="badge st-${st} gv-st" title="${h(HLA.STATUS[st].rotulo)}">${ICONE[st]} ${h(ROT_CURTO[st])}</span></td>`}
-        <td>${celE}</td>${celA}
+        ${glE}<td>${celE}</td>${glA}${celA}
         <td class="nt"><button class="gv-nt${t.estado === "nt" ? " escolhido" : ""}" data-gv="nt" data-chave="${h(l.chave)}" title="${t.estado === "nt" ? (d && (d.fonte === "nt" || d.fonte === "nao_liberar") ? "NT escolhido pelo analista: clique de novo para voltar à sugestão" : "NT automático (rejeitado no NGSengine)") : "Liberar como NT (não tipado)"}">NT</button></td>
         <td><button class="gv-lib${pend ? " pend" : ""}" data-abrir="${h(l.chave)}" title="${h(ef ? (ef.automatica ? "Liberado automaticamente: " + l.sugestao.motivo : "Decisão do analista") : l.sugestao.motivo)}"><span class="mk">${marca}</span>${pend ? `<span class="a muted">${aguardaMac(l) ? "aguardando API MAC" : "decidir"}</span>` : t.estado === "nt" ? `<span class="a" style="color:var(--critical)">NT</span>` : !lib[0] && !lib[1] ? `<span class="a muted">não tipado</span>` : al2(lib)}</button></td>
         <td class="fl">${st === "ausente" && !e ? "" : chipsAlerta(l, hi && (hi.tipado || hi.esperado) ? { conflito: E.hemi[l.chaveAmostra + "|" + lc] === undefined ? hi.conflito : "", tipado: hi.tipado, copias, motivo: hi.motivo } : null)}</td></tr>`;
@@ -2800,7 +2819,7 @@ table.gv tr.vazia td { color: var(--text-muted); }
       <div class="gv-barra">
         <div class="seg" id="gv-filtro">${filtros.map(([k, r]) => `<button data-gf="${k}" aria-pressed="${E.genFiltro === k}">${r}</button>`).join("")}</div>
         ${nMacGene ? `<button class="btn pequeno" data-mac-lote>Sem código NMDP: consultar ${pendentesMac().length} na API MAC</button>` : ""}
-        <span class="muted" style="margin-left:auto;font-size:12.5px">Clique na coluna do software para liberar aquela tipagem · no nº da amostra para os detalhes · <kbd>[</kbd> <kbd>]</kbd> troca de gene</span>
+        <span class="muted" style="margin-left:auto;font-size:12.5px">Clique no resultado de um software para liberá-lo · no nº da amostra para os detalhes · verde = genótipo presente nos dois softwares · <kbd>[</kbd> <kbd>]</kbd> troca de gene</span>
       </div>
       <div class="gv-lote ${sel.length ? "ativo" : ""}">
         <span><b>${sel.length}</b> selecionada(s)</span>
@@ -2813,8 +2832,8 @@ table.gv tr.vazia td { color: var(--text-muted); }
         <button class="btn pequeno" data-glote="limpar">Voltar à sugestão</button>` : ""}
       </div>
       <div class="gv-wrap"><table class="gv">
-        <thead><tr><th class="ck"><input type="checkbox" id="gv-todas" title="Selecionar todas as visíveis"></th><th>Amostra</th>${soE ? "" : "<th>Comparação</th>"}<th>NGSengine</th>${soE ? "" : "<th>Assign</th>"}<th></th><th>Resultado final</th><th>Alertas</th></tr></thead>
-        <tbody>${linhas || `<tr><td colspan="8" class="muted" style="padding:18px">Nenhuma amostra neste filtro.</td></tr>`}</tbody></table></div>
+        <thead><tr><th class="ck"><input type="checkbox" id="gv-todas" title="Selecionar todas as visíveis"></th><th>Amostra</th>${soE ? "" : "<th>Comparação</th>"}<th class="sw-e">NGSengine · GLString</th><th class="sw-e">NGSengine · resultado</th>${soE ? "" : `<th class="sw-a">Assign · GLString</th><th class="sw-a">Assign · resultado</th>`}<th></th><th>Resultado final</th><th>Alertas</th></tr></thead>
+        <tbody>${linhas || `<tr><td colspan="11" class="muted" style="padding:18px">Nenhuma amostra neste filtro.</td></tr>`}</tbody></table></div>
 
       <div class="gv-rodape">${nPendG ? `<span class="muted">${nPendG} pendente(s) em ${h(lc)}</span>` : `<span style="color:var(--good);font-weight:600">✓ ${h(lc)} sem pendências</span>`}
         ${prox ? `<button class="btn ${nPendG ? "" : "primario"}" data-gene="${h(prox)}">Próximo gene: ${h(prox.replace("HLA-", ""))} →</button>` : `<button class="btn ${E.cons.linhas.some(pendente) ? "" : "primario"}" data-ir="hemi">Próxima etapa: 2 · DRB3/4/5 →</button>`}</div>`;
